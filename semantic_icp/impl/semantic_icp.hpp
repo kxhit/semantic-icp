@@ -7,7 +7,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
 
-#include <gicp_cost_function.h>
+#include <gicp_cost_functor_autodiff.h>
 #include <local_parameterization_se3.h>
 
 namespace semanticicp
@@ -62,11 +62,15 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                     const Eigen::Matrix3d &targetCov =
                         (targetCloud_->labeledCovariances[s])->at(targetIndx[0]);
 
-                    ceres::CostFunction *cost_function = new GICPCostFunction(sourcePoint,
-                                                                              targetPoint,
-                                                                              sourceCov,
-                                                                              targetCov,
-                                                                              baseTransformation_);
+                    GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(sourcePoint,
+                                                                           targetPoint,
+                                                                           sourceCov,
+                                                                           targetCov,
+                                                                           baseTransformation_);
+                    ceres::CostFunction* cost_function =
+                        new ceres::AutoDiffCostFunction<GICPCostFunctorAutoDiff,
+                                                        1,
+                                                        Sophus::SE3d::num_parameters>(c);
 
                     problem.AddResidualBlock(cost_function, NULL, transform.data());
                 }
@@ -74,8 +78,8 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             }
             // Sovler Options
             ceres::Solver::Options options;
-            options.gradient_tolerance = 0.01 * Sophus::Constants<double>::epsilon();
-            options.function_tolerance = 0.01 * Sophus::Constants<double>::epsilon();
+            //options.gradient_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
+            //options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
             options.linear_solver_type = ceres::DENSE_QR;
 
             // Solve
