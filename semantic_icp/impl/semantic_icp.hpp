@@ -23,17 +23,21 @@ template <typename PointT, typename SemanticT>
 void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
         SemanticCloudPtr final, Sophus::SE3d &initTransform) {
     Sophus::SE3d transform(initTransform);
-    Sophus::SE3d currentTransform;
+    std::map<SemanticT, Sophus::SE3d> currentTransforms;
+    for( SemanticT s: sourceCloud_->semanticLabels)
+        currentTransforms[s] = initTransform;
     bool converged = false;
     size_t count = 0;
 
     while(converged!=true) {
+        double mseHigh = 0;
+        count++;
         for(SemanticT s:sourceCloud_->semanticLabels) {
             std::cout << "Label: " << s << std::endl;
             if (targetCloud_->labeledPointClouds.find(s) != targetCloud_->labeledPointClouds.end()) {
             typename pcl::PointCloud<PointT>::Ptr transformedSource (new pcl::PointCloud<PointT>());
-            currentTransform = Sophus::SE3d(transform*baseTransformation_);
-            Eigen::Matrix4d transMat = currentTransform.matrix();
+            transform = Sophus::SE3d(currentTransforms[s]*baseTransformation_);
+            Eigen::Matrix4d transMat = transform.matrix();
             pcl::transformPointCloud(*(sourceCloud_->labeledPointClouds[s]),
                                     *transformedSource,
                                     transMat);
@@ -46,7 +50,8 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             ceres::Problem problem;
 
             // Add Sophus SE3 Parameter block with local parametrization
-            problem.AddParameterBlock(transform.data(), Sophus::SE3d::num_parameters,
+            Sophus::SE3d estTransformation(currentTransforms[s]);
+            problem.AddParameterBlock(estTransformation.data(), Sophus::SE3d::num_parameters,
                                       new LocalParameterizationSE3);
 
 
@@ -72,7 +77,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                                                         1,
                                                         Sophus::SE3d::num_parameters>(c);
 
-                    problem.AddResidualBlock(cost_function, NULL, transform.data());
+                    problem.AddResidualBlock(cost_function, NULL, estTransformation.data());
                 }
 
             }
@@ -88,14 +93,22 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
 
             // Print Results
             std::cout << "Solution for label: " << s << std::endl;
-            std::cout << transform.matrix() << std::endl;
+            std::cout << estTransformation.matrix() << std::endl;
             std::cout << summary.BriefReport() << std::endl;
+            double mse = (currentTransforms[s].inverse()*estTransformation).log().squaredNorm();
+            std::cout << "transform squared difference: " << mse << std::endl;
+
+            currentTransforms[s] = estTransformation;
+            if(mse>mseHigh)
+                mseHigh = mse;
+
             }
 
         }
-        converged = true;
+        if(mseHigh < 0.01 || count>20)
+            converged = true;
     }
-    finalTransformation_ = Sophus::SE3d(transform*baseTransformation_);
+    finalTransformation_ = currentTransforms[0];
 };
 
 
