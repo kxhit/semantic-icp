@@ -1,6 +1,9 @@
 #ifndef SEMANTIC_POINT_CLOUD_HPP_
 #define SEMANTIC_POINT_CLOUD_HPP_
 
+#include <cmath>
+#include <iostream>
+
 namespace semanticicp
 {
 

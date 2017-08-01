@@ -25,7 +25,8 @@ namespace semanticicp
         typedef std::shared_ptr<MatricesVector> MatricesVectorPtr;
 
         SemanticPointCloud(int k=20, double epsilon = 0.001) :
-        k_correspondences_(k)
+        k_correspondences_(k),
+        epsilon_(epsilon)
         {};
 
         std::vector<SemanticT> semanticLabels;

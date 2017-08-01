@@ -5,6 +5,7 @@
 #include <Eigen/Geometry>
 #include <sophus/se3.hpp>
 #include <sophus/types.hpp>
+#include <sophus/common.hpp>
 
 #include <semantic_point_cloud.h>
 
@@ -63,6 +64,8 @@ namespace semanticicp
 
         SemanticCloudPtr sourceCloud_;
         SemanticCloudPtr targetCloud_;
+
+        Sophus::SE3d iterativeMean( std::vector<Sophus::SE3d> const& in, size_t maxIterations);
 
     };
 

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
@@ -28,11 +29,6 @@ main (int argc, char** argv)
 
     semanticicp::pcl_2_semantic(cloudA, semanticA);
 
-    std::cout << "LabelsA: " << std::endl;
-    for(uint32_t l: semanticA->semanticLabels) {
-        std::cout << l << std::endl;
-    }
-
     pcl::PointCloud<pcl::PointXYZL>::Ptr cloudB (new pcl::PointCloud<pcl::PointXYZL>);
 
     if (pcl::io::loadPCDFile<pcl::PointXYZL> ("cloudB.pcd", *cloudB) == -1) //* load the file
@@ -50,17 +46,49 @@ main (int argc, char** argv)
 
     semanticicp::pcl_2_semantic(cloudB, semanticB);
 
-    std::cout << "LabelsB: " << std::endl;
-    for(uint32_t l: semanticB->semanticLabels) {
-        std::cout << l << std::endl;
-    }
-
     semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
     sicp.setInputSource(semanticA);
     sicp.setInputTarget(semanticB);
 
     sicp.align(semanticA);
 
+    for(size_t t = 0; t< cloudA->points.size(); t++){
+        pcl::PointXYZL p = cloudA->points[t];
+        p.label=0;
+        cloudA->points[t] = p;
+    }
+    std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
+        semanticAnoL (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
+
+    std::cout << "LabelsA: " << std::endl;
+    semanticicp::pcl_2_semantic(cloudA, semanticAnoL);
+
+    for(uint32_t l: semanticAnoL->semanticLabels) {
+        std::cout << l << " Num Points: " <<semanticAnoL->labeledPointClouds[l]->points.size()
+                  <<std::endl;
+    }
+
+    for(size_t t = 0; t< cloudB->points.size(); t++){
+        pcl::PointXYZL p = cloudB->points[t];
+        p.label=0;
+        cloudB->points[t] = p;
+    }
+    std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
+        semanticBnoL (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
+
+    semanticicp::pcl_2_semantic(cloudB, semanticBnoL);
+    std::cout << "LabelsB: " << std::endl;
+    for(uint32_t l: semanticBnoL->semanticLabels) {
+        std::cout << l << " Num Points: " <<semanticBnoL->labeledPointClouds[l]->points.size()
+                  <<std::endl;
+    }
+
+    semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp2;
+    sicp2.setInputSource(semanticAnoL);
+    sicp2.setInputTarget(semanticBnoL);
+
+    sicp2.align(semanticAnoL);
+    /*
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudAnoL (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::io::loadPCDFile<pcl::PointXYZ> ("cloudA.pcd", *cloudAnoL);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudBnoL (new pcl::PointCloud<pcl::PointXYZ>);
@@ -73,7 +101,7 @@ main (int argc, char** argv)
     gicp.align(final1);
 
     std::cout << "GICP transform: \n" << gicp.getFinalTransformation() << std::endl;
-
+    */
 
     return (0);
 }

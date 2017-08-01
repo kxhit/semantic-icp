@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 #include <ceres/ceres.h>
 
 namespace semanticicp {
@@ -31,8 +32,6 @@ namespace semanticicp {
             temp += cov_target_.cast<T>();
             M = temp.inverse();
 
-            //std::cout << "Source: \n" << cov_source_ << std::endl;
-            //std::cout << "Target: \n" << cov_target_ << std::endl;
             Eigen::Matrix<T,3,1> transformed_point_source_ = transform*point_source_.cast<T>();
             Eigen::Matrix<T,3,1> res = transformed_point_source_-point_target_.cast<T>();
             Eigen::Matrix<T,3,1> dT = M*res;

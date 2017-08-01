@@ -22,21 +22,19 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(SemanticCloudPtr fin
 template <typename PointT, typename SemanticT>
 void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
         SemanticCloudPtr final, Sophus::SE3d &initTransform) {
-    Sophus::SE3d transform(initTransform);
-    std::map<SemanticT, Sophus::SE3d> currentTransforms;
-    for( SemanticT s: sourceCloud_->semanticLabels)
-        currentTransforms[s] = initTransform;
+    Sophus::SE3d currentTransform(initTransform);
     bool converged = false;
     size_t count = 0;
 
     while(converged!=true) {
+        std::vector<Sophus::SE3d> transformsVec;
         double mseHigh = 0;
         count++;
         for(SemanticT s:sourceCloud_->semanticLabels) {
             std::cout << "Label: " << s << std::endl;
             if (targetCloud_->labeledPointClouds.find(s) != targetCloud_->labeledPointClouds.end()) {
             typename pcl::PointCloud<PointT>::Ptr transformedSource (new pcl::PointCloud<PointT>());
-            transform = Sophus::SE3d(currentTransforms[s]*baseTransformation_);
+            transform = Sophus::SE3d(currentTransform*baseTransformation_);
             Eigen::Matrix4d transMat = transform.matrix();
             pcl::transformPointCloud(*(sourceCloud_->labeledPointClouds[s]),
                                     *transformedSource,
@@ -50,7 +48,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             ceres::Problem problem;
 
             // Add Sophus SE3 Parameter block with local parametrization
-            Sophus::SE3d estTransformation(currentTransforms[s]);
+            Sophus::SE3d estTransformation(currentTransform);
             problem.AddParameterBlock(estTransformation.data(), Sophus::SE3d::num_parameters,
                                       new LocalParameterizationSE3);
 
@@ -66,6 +64,14 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                         (targetCloud_->labeledPointClouds[s])->points[targetIndx[0]];
                     const Eigen::Matrix3d &targetCov =
                         (targetCloud_->labeledCovariances[s])->at(targetIndx[0]);
+
+                    if(std::isnan(targetCov(1,1))){
+                        std::cout << "Invalid set: \n";
+                        std::cout << sourcePoint << std::endl;
+                        std::cout << sourceCov << std::endl;
+                        std::cout << targetPoint << std::endl;
+                        std::cout << targetCov << std::endl;
+                    }
 
                     GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(sourcePoint,
                                                                            targetPoint,
@@ -92,25 +98,53 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             ceres::Solve(options, &problem, &summary);
 
             // Print Results
-            std::cout << "Solution for label: " << s << std::endl;
-            std::cout << estTransformation.matrix() << std::endl;
             std::cout << summary.BriefReport() << std::endl;
-            double mse = (currentTransforms[s].inverse()*estTransformation).log().squaredNorm();
-            std::cout << "transform squared difference: " << mse << std::endl;
+            double mse = (currentTransform.inverse()*estTransformation).log().squaredNorm();
+            std::cout << "label transform squared difference: " << mse << std::endl;
 
-            currentTransforms[s] = estTransformation;
-            if(mse>mseHigh)
-                mseHigh = mse;
+            if(summary.IsSolutionUsable())
+                transformsVec.push_back(estTransformation);
 
             }
 
         }
-        if(mseHigh < 0.01 || count>20)
+        Sophus::SE3d newTransform = iterativeMean(transformsVec,20);
+        double mse = (currentTransform.inverse()*newTransform).log().squaredNorm();
+        if(mse < 0.01 || count>20)
             converged = true;
+        std::cout<< "MSE: " << mse << std::endl;
+        std::cout<< "Transform: " << std::endl;
+        std::cout<< newTransform.matrix() << std::endl;
+        currentTransform = newTransform;
     }
-    finalTransformation_ = currentTransforms[0];
+
+    finalTransformation_ = currentTransform;
 };
 
+
+template <typename PointT, typename SemanticT>
+Sophus::SE3d SemanticIterativeClosestPoint<PointT,SemanticT>::iterativeMean(
+        std::vector<Sophus::SE3d> const& in,
+        size_t maxIterations) {
+    size_t N = in.size();
+
+    Sophus::SE3d tAverage = in.front();
+    double w = double(1.0/N);
+    for(size_t i = 0; i< maxIterations; ++i) {
+        Sophus::SE3d::Tangent average;
+        average.setZero();
+        for(Sophus::SE3d const& transform: in) {
+            average += w*(tAverage.inverse() * transform).log();
+        }
+        Sophus::SE3d newTAverage = tAverage*Sophus::SE3d::exp(average);
+        if((newTAverage.inverse()*tAverage).log().squaredNorm()<0.01)
+            return newTAverage;
+
+        tAverage = newTAverage;
+    }
+    std::cout << "Iterative Mean Failed";
+    return tAverage;
+};
 
 } // namespace semanticicp
 
