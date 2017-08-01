@@ -34,7 +34,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             std::cout << "Label: " << s << std::endl;
             if (targetCloud_->labeledPointClouds.find(s) != targetCloud_->labeledPointClouds.end()) {
             typename pcl::PointCloud<PointT>::Ptr transformedSource (new pcl::PointCloud<PointT>());
-            transform = Sophus::SE3d(currentTransform*baseTransformation_);
+            Sophus::SE3d transform = Sophus::SE3d(currentTransform*baseTransformation_);
             Eigen::Matrix4d transMat = transform.matrix();
             pcl::transformPointCloud(*(sourceCloud_->labeledPointClouds[s]),
                                     *transformedSource,

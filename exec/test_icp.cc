@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 #include <cmath>
 
 #include <pcl/io/pcd_io.h>
@@ -8,6 +9,7 @@
 #include <semantic_point_cloud.h>
 #include <semantic_icp.h>
 #include <pcl_2_semantic.h>
+
 
 int
 main (int argc, char** argv)
@@ -50,7 +52,11 @@ main (int argc, char** argv)
     sicp.setInputSource(semanticA);
     sicp.setInputTarget(semanticB);
 
+    auto begin = std::chrono::steady_clock::now();
     sicp.align(semanticA);
+    auto end = std::chrono::steady_clock::now();
+    std::cout << "Time Multiclass: "
+              << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
 
     for(size_t t = 0; t< cloudA->points.size(); t++){
         pcl::PointXYZL p = cloudA->points[t];
@@ -87,7 +93,11 @@ main (int argc, char** argv)
     sicp2.setInputSource(semanticAnoL);
     sicp2.setInputTarget(semanticBnoL);
 
+    begin = std::chrono::steady_clock::now();
     sicp2.align(semanticAnoL);
+    end = std::chrono::steady_clock::now();
+    std::cout << "Time Single Class: "
+              << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
     /*
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudAnoL (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::io::loadPCDFile<pcl::PointXYZ> ("cloudA.pcd", *cloudAnoL);
