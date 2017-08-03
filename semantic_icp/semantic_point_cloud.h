@@ -15,6 +15,9 @@ namespace semanticicp
     class SemanticPointCloud
     {
         public:
+        typedef std::shared_ptr<SemanticPointCloud<PointT, SemanticT>> Ptr;
+        typedef std::shared_ptr< const SemanticPointCloud<PointT, SemanticT>> ConstPtr;
+
         typedef pcl::PointCloud<PointT> PointCloud;
         typedef typename PointCloud::Ptr PointCloudPtr;
 
@@ -36,6 +39,8 @@ namespace semanticicp
 
         void addSemanticCloud( SemanticT label, PointCloudPtr cloud_ptr,
                 bool computeKd = true, bool computeCov = true);
+
+        void transform(Eigen::Matrix4f trans);
 
         private:
 

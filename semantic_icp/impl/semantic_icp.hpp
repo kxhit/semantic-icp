@@ -21,7 +21,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(SemanticCloudPtr fin
 
 template <typename PointT, typename SemanticT>
 void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
-        SemanticCloudPtr final, Sophus::SE3d &initTransform) {
+        SemanticCloudPtr finalCloud, Sophus::SE3d &initTransform) {
     Sophus::SE3d currentTransform(initTransform);
     bool converged = false;
     size_t count = 0;
@@ -110,7 +110,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
         }
         Sophus::SE3d newTransform = iterativeMean(transformsVec,20);
         double mse = (currentTransform.inverse()*newTransform).log().squaredNorm();
-        if(mse < 0.01 || count>20)
+        if(mse < 0.001 || count>20)
             converged = true;
         std::cout<< "MSE: " << mse << std::endl;
         std::cout<< "Transform: " << std::endl;
@@ -119,6 +119,10 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
     }
 
     finalTransformation_ = currentTransform;
+
+    Sophus::SE3d trans = finalTransformation_*baseTransformation_;
+    Eigen::Matrix4f mat = (trans.matrix()).cast<float>();
+    finalCloud->transform(mat);
 };
 
 

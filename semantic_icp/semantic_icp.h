@@ -46,10 +46,10 @@ namespace semanticicp
 
 
         void
-        align(SemanticCloudPtr final);
+        align(SemanticCloudPtr finalCloud);
 
         void
-        align(SemanticCloudPtr final, Sophus::SE3d &initTransform);
+        align(SemanticCloudPtr finalCloud, Sophus::SE3d &initTransform);
 
 
         protected:

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <chrono>
+#include <thread>
 #include <cmath>
 
 #include <pcl/io/pcd_io.h>
@@ -8,6 +9,7 @@
 
 #include <semantic_point_cloud.h>
 #include <semantic_icp.h>
+#include <semantic_viewer.h>
 #include <pcl_2_semantic.h>
 
 
@@ -112,6 +114,15 @@ main (int argc, char** argv)
 
     std::cout << "GICP transform: \n" << gicp.getFinalTransformation() << std::endl;
     */
+
+    semanticicp::SemanticViewer<pcl::PointXYZ, uint32_t> viewer;
+    viewer.addSemanticPointCloudSingleColor( semanticB, 255, 0, 0, "Target");
+    viewer.addSemanticPointCloudSingleColor( semanticA, 0, 255, 0, "GICP");
+    viewer.addSemanticPointCloudSingleColor( semanticAnoL, 0, 0, 255, "Semantic ICP");
+
+    while(!viewer.wasStopped()) {
+        std::this_thread::sleep_for (std::chrono::microseconds (100000));
+    };
 
     return (0);
 }

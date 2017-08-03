@@ -4,6 +4,8 @@
 #include <cmath>
 #include <iostream>
 
+#include <pcl/common/transforms.h>
+
 namespace semanticicp
 {
 
@@ -82,6 +84,14 @@ namespace semanticicp
             }
         }
 
+    };
+
+    template<typename PointT, typename SemanticT>
+    void SemanticPointCloud<PointT, SemanticT>::transform(Eigen::Matrix4f trans) {
+        for( SemanticT s: semanticLabels) {
+            pcl::transformPointCloud (*(labeledPointClouds[s]), *(labeledPointClouds[s]),
+                    trans);
+        }
     };
 
 } // namespace semanticicp
