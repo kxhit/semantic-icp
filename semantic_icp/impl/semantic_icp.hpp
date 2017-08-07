@@ -54,10 +54,12 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
 
 
             for(int sourceIndx = 0; sourceIndx != transformedSource->size(); sourceIndx++) {
-                const PointT &sourcePoint = transformedSource->points[sourceIndx];
+                const PointT &transformedSourcePoint = transformedSource->points[sourceIndx];
 
-                tree->nearestKSearch(sourcePoint, 1, targetIndx, distSq);
+                tree->nearestKSearch(transformedSourcePoint, 1, targetIndx, distSq);
                 if( distSq[0] < 4 ) {
+                    const PointT &sourcePoint =
+                        (sourceCloud_->labeledPointClouds[s])->points[sourceIndx];
                     const Eigen::Matrix3d &sourceCov =
                         (sourceCloud_->labeledCovariances[s])->at(sourceIndx);
                     const PointT &targetPoint =
