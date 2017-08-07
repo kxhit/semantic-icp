@@ -2,10 +2,12 @@
 #include <chrono>
 #include <thread>
 #include <cmath>
+#include <string>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/gicp.h>
+#include <pcl/console/parse.h>
 
 #include <semantic_point_cloud.h>
 #include <semantic_icp.h>
@@ -16,9 +18,20 @@
 int
 main (int argc, char** argv)
 {
+    std::string strSource;
+    std::string strTarget;
+    if ( !pcl::console::parse_argument(argc, argv, "-s", strSource) ) {
+        std::cout << "Need source file (-s)\n";
+        return (-1);
+    }
+    if ( !pcl::console::parse_argument(argc, argv, "-t", strTarget) ) {
+        std::cout << "Need target file (-t)\n";
+        return (-1);
+    }
+
     pcl::PointCloud<pcl::PointXYZL>::Ptr cloudA (new pcl::PointCloud<pcl::PointXYZL>);
 
-    if (pcl::io::loadPCDFile<pcl::PointXYZL> ("cloudA.pcd", *cloudA) == -1) //* load the file
+    if (pcl::io::loadPCDFile<pcl::PointXYZL> (strSource, *cloudA) == -1) //* load the file
     {
         PCL_ERROR ("Couldn't read file cloudA.pcd \n");
         return (-1);
@@ -35,7 +48,7 @@ main (int argc, char** argv)
 
     pcl::PointCloud<pcl::PointXYZL>::Ptr cloudB (new pcl::PointCloud<pcl::PointXYZL>);
 
-    if (pcl::io::loadPCDFile<pcl::PointXYZL> ("cloudB.pcd", *cloudB) == -1) //* load the file
+    if (pcl::io::loadPCDFile<pcl::PointXYZL> (strTarget, *cloudB) == -1) //* load the file
     {
         PCL_ERROR ("Couldn't read file cloudB.pcd \n");
         return (-1);
