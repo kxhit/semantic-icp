@@ -113,11 +113,11 @@ main (int argc, char** argv)
     end = std::chrono::steady_clock::now();
     std::cout << "Time Single Class: "
               << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
-    /*
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudAnoL (new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::io::loadPCDFile<pcl::PointXYZ> ("cloudA.pcd", *cloudAnoL);
+    pcl::io::loadPCDFile<pcl::PointXYZ> (strSource, *cloudAnoL);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudBnoL (new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::io::loadPCDFile<pcl::PointXYZ> ("cloudB.pcd", *cloudBnoL);
+    pcl::io::loadPCDFile<pcl::PointXYZ> (strTarget, *cloudBnoL);
 
     pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp;
     gicp.setInputCloud(cloudAnoL);
@@ -126,7 +126,6 @@ main (int argc, char** argv)
     gicp.align(final1);
 
     std::cout << "GICP transform: \n" << gicp.getFinalTransformation() << std::endl;
-    */
 
     semanticicp::SemanticViewer<pcl::PointXYZ, uint32_t> viewer;
     viewer.addSemanticPointCloudSingleColor( semanticB, 255, 0, 0, "Target");

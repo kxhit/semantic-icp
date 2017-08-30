@@ -51,6 +51,12 @@ namespace semanticicp
         void
         align(SemanticCloudPtr finalCloud, Sophus::SE3d &initTransform);
 
+        Sophus::SE3d
+        getFinalTransFormation() {
+            Sophus::SE3d temp = finalTransformation_;
+            return temp;
+        };
+
 
         protected:
 
@@ -66,6 +72,9 @@ namespace semanticicp
         SemanticCloudPtr targetCloud_;
 
         Sophus::SE3d iterativeMean( std::vector<Sophus::SE3d> const& in, size_t maxIterations);
+        Sophus::SE3d poseFusion( std::vector<Sophus::SE3d> const& poses,
+                                 std::vector<Eigen::Matrix<double,6,6>> const& covs,
+                                 Sophus::SE3d const &initTransform);
 
     };
 

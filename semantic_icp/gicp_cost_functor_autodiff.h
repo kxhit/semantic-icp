@@ -25,6 +25,8 @@ namespace semanticicp {
         bool operator()(T const* const parameters,
                                T* residuals) const {
             Eigen::Map<Sophus::SE3<T> const> const transformIn_(parameters);
+            //std::cout << "Source " << point_source_ << std::endl;
+            //std::cout << "Target " << point_target_ << std::endl;
             Sophus::SE3<T> transform = transformIn_*base_transform_.cast<T>();
             Eigen::Matrix<T,3,3> R = transform.rotationMatrix();
             Eigen::Matrix<T,3,3> M = R*cov_source_.cast<T>();
