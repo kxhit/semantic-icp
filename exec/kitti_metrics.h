@@ -7,7 +7,7 @@ class KittiMetrics
 {
     public:
 
-        KittiMetrics(std::string& gtFileName) :
+        KittiMetrics(std::string& gtFileName, std::ostream *out = &std::cout) :
             gtFile_(gtFileName),
             count_(0),
             transformMSE_(0),
@@ -24,6 +24,7 @@ class KittiMetrics
                 Sophus::SE3d trans(mat);
                 gtPoses_.push_back(trans);
             }
+            out_ = out;
 
         };
 
@@ -32,7 +33,7 @@ class KittiMetrics
             Sophus::SE3d transformGT = getGTtransfrom(poseIDA, poseIDB);
             Sophus::SE3d transformDiff = transformGT*transform.inverse();
             double transformError = transformDiff.log().squaredNorm();
-            double rotError = transformDiff.rotationMatrix().squaredNorm();
+            double rotError = (transformDiff.rotationMatrix()-Eigen::Matrix3d::Identity()).squaredNorm();
             double transError = transformDiff.translation().squaredNorm();
 
             transformDiffs_.push_back(transformDiff);
@@ -45,6 +46,16 @@ class KittiMetrics
             transMSE_ += transError;
             count_++;
 
+            *out_ << transformError << ", " <<  rotError << ", " << transError;
+            Eigen::Matrix<double,4,4,Eigen::RowMajor> temp = transformDiff.matrix();
+            for( size_t i = 0, size = temp.size(); i<size; i++) {
+                *out_ << ", " << *(temp.data()+i);
+            };
+            temp = transform.matrix();
+            for( size_t i = 0, size = temp.size(); i<size; i++) {
+                *out_ << ", " << *(temp.data()+i);
+            };
+            *out_ << std::endl;
             //std::cout << "Pose A\n";
             //std::cout << poseA.matrix();
             //std::cout << std::endl;
@@ -106,6 +117,8 @@ class KittiMetrics
         double rotMSE_;
         double transMSE_;
         size_t count_;
+
+        std::ostream *out_;
 };
 
 

@@ -51,16 +51,16 @@ int
 main (int argc, char** argv)
 {
     std::string strDirectory;
-    std::string strGTFile;
+    std::string strGTDirectory;
     if ( !pcl::console::parse_argument(argc, argv, "-s", strDirectory) ) {
         std::cout << "Need source directory (-s)\n";
         return (-1);
     }
-    /*
-    if ( !pcl::console::parse_argument(argc, argv, "-t", strGTFile) ) {
-        std::cout << "Need ground truth file (-t)\n";
+    
+    if ( !pcl::console::parse_argument(argc, argv, "-t", strGTDirectory) ) {
+        std::cout << "Need ground truth directory (-t)\n";
         return (-1);
-    }*/
+    }
 
     std::vector<std::string> pcd_fns = get_pcd_in_dir(strDirectory);
     std::sort(pcd_fns.begin(),pcd_fns.end());
@@ -70,6 +70,9 @@ main (int argc, char** argv)
         std::cout << s << std::endl;
     }
 
+    std::vector<std::string> pcd_GTfns = get_pcd_in_dir(strGTDirectory);
+    std::sort(pcd_GTfns.begin(),pcd_GTfns.end());
+
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
 
@@ -78,12 +81,20 @@ main (int argc, char** argv)
     auto dateStr = oss.str();
 
     std::ofstream foutSICP;
-    foutSICP.open(dateStr+"SICP.csv");
+    foutSICP.open(dateStr+"SICProc.csv");
     ROCMetrics rocSICP(&foutSICP);
 
     std::ofstream foutGICP;
-    foutGICP.open(dateStr+"GICP.csv");
+    foutGICP.open(dateStr+"GICProc.csv");
     ROCMetrics rocGICP(&foutGICP);
+
+    std::ofstream foutSICPtrans;
+    foutSICPtrans.open(dateStr+"SICPtransform.csv");
+
+    std::ofstream foutGICPtrans;
+    foutGICPtrans.open(dateStr+"GICPtransform.csv");
+
+
 
     for(size_t n = 0; n<(pcd_fns.size()-1); n++) {
         std::cout << "Cloud# " << n << std::endl;
@@ -117,6 +128,11 @@ main (int argc, char** argv)
             return (-1);
         }
 
+        pcl::PointCloud<pcl::PointXYZL>::Ptr cloudAGT (new pcl::PointCloud<pcl::PointXYZL>);
+        pcl::PointCloud<pcl::PointXYZL>::Ptr cloudBGT (new pcl::PointCloud<pcl::PointXYZL>);
+        pcl::io::loadPCDFile<pcl::PointXYZL> (pcd_GTfns[n], *cloudAGT);
+        pcl::io::loadPCDFile<pcl::PointXYZL> (pcd_GTfns[n+1], *cloudBGT);
+
         std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
             semanticB (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
 
@@ -136,11 +152,14 @@ main (int argc, char** argv)
         auto end = std::chrono::steady_clock::now();
         std::cout << "Time Multiclass: "
                 << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
-        Sophus::SE3d sicpTranform = sicp.getFinalTransFormation();
+        Sophus::SE3d sicpTransform = sicp.getFinalTransFormation();
+        foutSICPtrans << sicpTransform.matrix().cast<float>() << std::endl;
 
-        pcl::PointCloud<pcl::PointXYZL>::Ptr cloudASICP = semanticA->getpclPointCloud();
+        pcl::PointCloud<pcl::PointXYZL>::Ptr cloudASICP (new pcl::PointCloud<pcl::PointXYZL>);
+        pcl::transformPointCloud(*cloudAGT, *cloudASICP, (sicpTransform.matrix()).cast<float>());
 
-        rocSICP.evaluate(cloudASICP, cloudB);
+
+        rocSICP.evaluate(cloudASICP, cloudBGT);
 
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
         gicp.setInputCloud(cloudA);
@@ -149,7 +168,7 @@ main (int argc, char** argv)
 
         pcl::PointCloud<pcl::PointXYZL>::Ptr cloudAGICP (new pcl::PointCloud<pcl::PointXYZL>);
         begin = std::chrono::steady_clock::now();
-        gicp.align(*cloudAGICP, (initTransform.matrix()).cast<float>());
+        gicp.align(*cloudA, (initTransform.matrix()).cast<float>());
         end = std::chrono::steady_clock::now();
         std::cout << "Time GICP: "
                   << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
@@ -157,13 +176,18 @@ main (int argc, char** argv)
         std::cout << "Final GICP Transform\n";
         std::cout << mat << std::endl;
         Sophus::SE3d gicpTransform2(mat.cast<double>());
+        foutGICPtrans << mat << std::endl;
 
-        rocGICP.evaluate(cloudAGICP, cloudB);
+        pcl::transformPointCloud(*cloudAGT, *cloudAGICP, mat);
+
+        rocGICP.evaluate(cloudAGICP, cloudBGT);
 
     }
 
     foutSICP.close();
     foutGICP.close();
+    foutSICPtrans.close();
+    foutGICPtrans.close();
 
     return (0);
 }

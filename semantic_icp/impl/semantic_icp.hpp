@@ -126,7 +126,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                                                      estTransformation.data(),
                                                      temp);
             covMat = Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>>(temp);
-            covMat = covMat/covMat.norm();
+            covMat = covMat;
             //covMat = Eigen::Matrix<double, 6, 6>::Identity();
 
 
@@ -220,11 +220,18 @@ Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
     problem.AddParameterBlock(fusedPose.data(), Sophus::SE3d::num_parameters,
                               new LocalParameterizationSE3);
 
+    double det = 0;
+    for(auto m:covs) {
+        det+=m.determinant()/double(covs.size());
+    }
+    double scale = pow(1.0/det, 1.0/6.0);
+    scale = 1.0/scale;
+
     for(size_t n =0; n<poses.size(); n++) {
         std::cout << poses[n].matrix() << std::endl;
         std::cout << covs[n] << std::endl;
         PoseFusionCostFunctor *c = new PoseFusionCostFunctor(poses[n].inverse(),
-                                                             covs[n].inverse());
+                                                             covs[n].inverse()*scale);
 
         ceres::CostFunction *costFunction =
             new ceres::AutoDiffCostFunction<PoseFusionCostFunctor,

@@ -65,11 +65,27 @@ main (int argc, char** argv)
         std::cout << s << std::endl;
     }
 
-    KittiMetrics semanticICPMetrics(strGTFile);
-    KittiMetrics se3GICPMetrics(strGTFile);
-    KittiMetrics GICPMetrics(strGTFile);
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
 
-    for(size_t n = 10; n<110; n++) {
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%d-%m-%Y,%H-%M-%S");
+    auto dateStr = oss.str();
+
+    std::ofstream foutSICP;
+    foutSICP.open(dateStr+"SICPkitti.csv");
+
+    std::ofstream foutGICP;
+    foutGICP.open(dateStr+"GICPkitti.csv");
+
+    std::ofstream foutse3GICP;
+    foutse3GICP.open(dateStr+"se3GICPkitti.csv");
+
+    KittiMetrics semanticICPMetrics(strGTFile, &foutSICP);
+    KittiMetrics se3GICPMetrics(strGTFile, &foutse3GICP);
+    KittiMetrics GICPMetrics(strGTFile, &foutGICP);
+
+    for(size_t n = 0; n<100; n++) {
         std::cout << "Cloud# " << n << std::endl;
         std::string strTarget = pcd_fns[n];
         std::string strSource = pcd_fns[n+3];
@@ -202,6 +218,10 @@ main (int argc, char** argv)
     GICPMetrics.printRot();
     std::cout << "Trans\n";
     GICPMetrics.printTrans();
+
+    foutSICP.close();
+    foutse3GICP.close();
+    foutGICP.close();
 
     return (0);
 }
