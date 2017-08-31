@@ -87,6 +87,22 @@ namespace semanticicp
     };
 
     template<typename PointT, typename SemanticT>
+    pcl::PointCloud<pcl::PointXYZL>::Ptr SemanticPointCloud<PointT, SemanticT>::getpclPointCloud (){
+        pcl::PointCloud<pcl::PointXYZL>::Ptr cloudPtr(new pcl::PointCloud<pcl::PointXYZL>());
+        for( SemanticT s: semanticLabels) {
+            for ( PointT p: *(labeledPointClouds[s]) ) {
+                pcl::PointXYZL tempP;
+                tempP.x = p.x;
+                tempP.y = p.y;
+                tempP.z = p.z;
+                tempP.label = uint32_t(s);
+                cloudPtr->push_back(tempP);
+            }
+        }
+        return cloudPtr;
+    };
+
+    template<typename PointT, typename SemanticT>
     void SemanticPointCloud<PointT, SemanticT>::transform(Eigen::Matrix4f trans) {
         for( SemanticT s: semanticLabels) {
             pcl::transformPointCloud (*(labeledPointClouds[s]), *(labeledPointClouds[s]),

@@ -230,13 +230,13 @@ Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
             new ceres::AutoDiffCostFunction<PoseFusionCostFunctor,
                                             1,
                                             Sophus::SE3d::num_parameters> (c);
-        problem.AddResidualBlock(costFunction, new ceres::CauchyLoss(1.0), fusedPose.data());
+        problem.AddResidualBlock(costFunction, new ceres::CauchyLoss(0.5), fusedPose.data());
     }
 
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_QR;
     options.num_threads = 4;
-    options.max_num_iterations = 300;
+    options.max_num_iterations = 500;
     options.gradient_tolerance = 0.01 * Sophus::Constants<double>::epsilon();
     options.function_tolerance = 0.01 * Sophus::Constants<double>::epsilon();
 

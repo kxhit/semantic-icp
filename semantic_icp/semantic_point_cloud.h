@@ -2,6 +2,7 @@
 #define SEMANTIC_POINT_CLOUD_H_
 
 #include <vector>
+#include <algorithm>
 #include <memory>
 #include <map>
 
@@ -39,6 +40,18 @@ namespace semanticicp
 
         void addSemanticCloud( SemanticT label, PointCloudPtr cloud_ptr,
                 bool computeKd = true, bool computeCov = true);
+
+        void removeSemanticClass( SemanticT label ) {
+            auto it = std::find( semanticLabels.begin(), semanticLabels.end(), label );
+            if( it != semanticLabels.end() ) {
+                semanticLabels.erase(it);
+                labeledPointClouds.erase(labeledPointClouds.find(label));
+                labeledCovariances.erase(labeledCovariances.find(label));
+                labeledKdTrees.erase(labeledKdTrees.find(label));
+            }
+        };
+
+        pcl::PointCloud<pcl::PointXYZL>::Ptr getpclPointCloud ();
 
         void transform(Eigen::Matrix4f trans);
 
