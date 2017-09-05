@@ -15,6 +15,7 @@
 #include <semantic_icp.h>
 #include <pcl_2_semantic.h>
 #include "kitti_metrics.h"
+#include "bootstrap.h"
 
 
 
@@ -72,6 +73,21 @@ main (int argc, char** argv)
     oss << std::put_time(&tm, "%d-%m-%Y,%H-%M-%S");
     auto dateStr = oss.str();
 
+/*
+    std::ofstream foutSICP;
+    //foutSICP.open(dateStr+"SICPkitti.csv");
+
+    std::ofstream foutGICP;
+    //foutGICP.open(dateStr+"GICPkitti.csv");
+
+    std::ofstream foutse3GICP;
+    //foutse3GICP.open(dateStr+"se3GICPkitti.csv");
+
+    KittiMetrics semanticICPMetrics(strGTFile);
+    KittiMetrics se3GICPMetrics(strGTFile);
+    KittiMetrics GICPMetrics(strGTFile);
+  */  
+
     std::ofstream foutSICP;
     foutSICP.open(dateStr+"SICPkitti.csv");
 
@@ -89,9 +105,6 @@ main (int argc, char** argv)
         std::cout << "Cloud# " << n << std::endl;
         std::string strTarget = pcd_fns[n];
         std::string strSource = pcd_fns[n+3];
-        //Sophus::SE3d initTransform = semanticICPMetrics.getGTtransfrom(n, n+3);
-        Eigen::Matrix4d temp = Eigen::Matrix4d::Identity();
-        Sophus::SE3d initTransform(temp);
         pcl::PointCloud<pcl::PointXYZL>::Ptr cloudA (new pcl::PointCloud<pcl::PointXYZL>);
 
         if (pcl::io::loadPCDFile<pcl::PointXYZL> (strSource, *cloudA) == -1) //* load the file
@@ -126,6 +139,11 @@ main (int argc, char** argv)
         semanticB->removeSemanticClass( 11 );
         cloudB = semanticB->getpclPointCloud();
 
+        //Sophus::SE3d initTransform = semanticICPMetrics.getGTtransfrom(n, n+3);
+        //Eigen::Matrix4d temp = Eigen::Matrix4d::Identity();
+        Bootstrap boot(cloudA, cloudB);
+        Eigen::Matrix4d temp = (boot.align()).cast<double>();
+        Sophus::SE3d initTransform(temp);
 
         semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
         sicp.setInputSource(semanticA);

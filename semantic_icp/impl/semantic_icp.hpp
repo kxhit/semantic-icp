@@ -237,7 +237,7 @@ Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
             new ceres::AutoDiffCostFunction<PoseFusionCostFunctor,
                                             1,
                                             Sophus::SE3d::num_parameters> (c);
-        problem.AddResidualBlock(costFunction, new ceres::CauchyLoss(0.5), fusedPose.data());
+        problem.AddResidualBlock(costFunction, NULL, fusedPose.data());
     }
 
     ceres::Solver::Options options;
