@@ -36,7 +36,8 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
         for(SemanticT s:sourceCloud_->semanticLabels) {
             std::cout << "Label: " << s << std::endl;
             if (targetCloud_->labeledPointClouds.find(s) != targetCloud_->labeledPointClouds.end()) {
-            if (sourceCloud_->labeledPointClouds[s]->size()>1400) {
+            //if (sourceCloud_->labeledPointClouds[s]->size()>1400) {
+            if (sourceCloud_->labeledPointClouds[s]->size()>400) {
             typename pcl::PointCloud<PointT>::Ptr transformedSource (new pcl::PointCloud<PointT>());
             Sophus::SE3d transform = currentTransform;
             Eigen::Matrix4d transMat = transform.matrix();
@@ -105,6 +106,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
             options.linear_solver_type = ceres::DENSE_QR;
             options.num_threads = 4;
+            options.max_num_iterations = 100;
 
             // Solve
             ceres::Solver::Summary summary;
@@ -250,7 +252,7 @@ Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     std::cout << "Pose Fusion\n";
-    std::cout << summary.FullReport() << std::endl;
+    std::cout << summary.BriefReport() << std::endl;
 
     return fusedPose;
 };

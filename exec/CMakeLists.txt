@@ -17,3 +17,6 @@ target_link_libraries (kitti_eval semantic_icp_lib ${PCL_LIBRARIES} ${CERES_LIBR
 
 add_executable (roc_eval roc_eval.cc ${HEADER_FILES})
 target_link_libraries (roc_eval semantic_icp_lib ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
+add_executable (nyu_eval nyu_eval.cc ${HEADER_FILES})
+target_link_libraries (nyu_eval semantic_icp_lib ${PCL_LIBRARIES} ${CERES_LIBRARIES})
