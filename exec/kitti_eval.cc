@@ -101,10 +101,12 @@ main (int argc, char** argv)
     KittiMetrics se3GICPMetrics(strGTFile, &foutse3GICP);
     KittiMetrics GICPMetrics(strGTFile, &foutGICP);
 
-    for(size_t n = 0; n<100; n++) {
+    for(size_t n = 0; n<500; n+=3) {
         std::cout << "Cloud# " << n << std::endl;
-        std::string strTarget = pcd_fns[n];
-        std::string strSource = pcd_fns[n+3];
+        size_t indxTarget = n;
+        size_t indxSource = indxTarget + 3;
+        std::string strTarget = pcd_fns[indxTarget];
+        std::string strSource = pcd_fns[indxSource];
         pcl::PointCloud<pcl::PointXYZL>::Ptr cloudA (new pcl::PointCloud<pcl::PointXYZL>);
 
         if (pcl::io::loadPCDFile<pcl::PointXYZL> (strSource, *cloudA) == -1) //* load the file
@@ -120,7 +122,7 @@ main (int argc, char** argv)
         semanticA->removeSemanticClass( 3 );
         semanticA->removeSemanticClass( 10 );
         semanticA->removeSemanticClass( 11 );
-        cloudA = semanticA->getpclPointCloud();
+        //cloudA = semanticA->getpclPointCloud();
 
         pcl::PointCloud<pcl::PointXYZL>::Ptr cloudB (new pcl::PointCloud<pcl::PointXYZL>);
 
@@ -137,12 +139,12 @@ main (int argc, char** argv)
         semanticB->removeSemanticClass( 3 );
         semanticB->removeSemanticClass( 10 );
         semanticB->removeSemanticClass( 11 );
-        cloudB = semanticB->getpclPointCloud();
+        //cloudB = semanticB->getpclPointCloud();
 
         //Sophus::SE3d initTransform = semanticICPMetrics.getGTtransfrom(n, n+3);
-        //Eigen::Matrix4d temp = Eigen::Matrix4d::Identity();
-        Bootstrap boot(cloudA, cloudB);
-        Eigen::Matrix4d temp = (boot.align()).cast<double>();
+        Eigen::Matrix4d temp = Eigen::Matrix4d::Identity();
+        //Bootstrap boot(cloudA, cloudB);
+        //Eigen::Matrix4d temp = (boot.align()).cast<double>();
         Sophus::SE3d initTransform(temp);
 
         semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
@@ -156,7 +158,7 @@ main (int argc, char** argv)
                 << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
         Sophus::SE3d sicpTranform = sicp.getFinalTransFormation();
         std::cout << "SICP MSE: "
-                  << semanticICPMetrics.evaluate(sicpTranform, n, n+3)
+                  << semanticICPMetrics.evaluate(sicpTranform, indxTarget, indxSource)
                   << std::endl;
 
         for(size_t t = 0; t< cloudA->points.size(); t++){
@@ -191,7 +193,7 @@ main (int argc, char** argv)
                   << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
         Sophus::SE3d gicpTransform = sicp2.getFinalTransFormation();
         std::cout << "se3GICP MSE: "
-                  << se3GICPMetrics.evaluate(gicpTransform, n, n+3)
+                  << se3GICPMetrics.evaluate(gicpTransform, indxTarget, indxSource)
                   << std::endl;
 
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
@@ -209,7 +211,7 @@ main (int argc, char** argv)
         std::cout << mat << std::endl;
         Sophus::SE3d gicpTransform2(mat.cast<double>());
         std::cout << "GICP MSE: "
-                  << GICPMetrics.evaluate(gicpTransform2, n, n+3)
+                  << GICPMetrics.evaluate(gicpTransform2, indxTarget, indxSource)
                   << std::endl;
 
     }

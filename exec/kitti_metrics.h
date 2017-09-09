@@ -56,12 +56,12 @@ class KittiMetrics
                 *out_ << ", " << *(temp.data()+i);
             };
             *out_ << std::endl;
-            //std::cout << "Pose A\n";
-            //std::cout << poseA.matrix();
-            //std::cout << std::endl;
-            //std::cout << "Pose B\n";
-            //std::cout << poseB.matrix();
-            //std::cout << std::endl;
+            std::cout << "Pose A\n";
+            std::cout << gtPoses_[poseIDA].matrix();
+            std::cout << std::endl;
+            std::cout << "Pose B\n";
+            std::cout << gtPoses_[poseIDB].matrix();
+            std::cout << std::endl;
             std::cout << "GT Transform\n";
             std::cout << transformGT.matrix();
             std::cout << std::endl;
@@ -71,7 +71,7 @@ class KittiMetrics
         Sophus::SE3d getGTtransfrom(size_t poseIDA, size_t poseIDB) {
             const Sophus::SE3d& poseA = gtPoses_[poseIDA];
             const Sophus::SE3d& poseB = gtPoses_[poseIDB];
-            return poseB*poseA.inverse();
+            return poseA.inverse()*poseB;
         };
 
         double getTransformMSE() {

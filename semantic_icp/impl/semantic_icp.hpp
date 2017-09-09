@@ -64,7 +64,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                 const PointT &transformedSourcePoint = transformedSource->points[sourceIndx];
 
                 tree->nearestKSearch(transformedSourcePoint, 1, targetIndx, distSq);
-                if( distSq[0] < 4 ) {
+                if( distSq[0] < 250 ) {
                 //if( true ) {
                     const PointT &sourcePoint =
                         (sourceCloud_->labeledPointClouds[s])->points[sourceIndx];
@@ -94,7 +94,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                                                         1,
                                                         Sophus::SE3d::num_parameters>(c);
 
-                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(2),
+                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(10.0),
                                              estTransformation.data());
                 }
 
@@ -106,7 +106,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
             options.linear_solver_type = ceres::DENSE_QR;
             options.num_threads = 4;
-            options.max_num_iterations = 100;
+            options.max_num_iterations = 400;
 
             // Solve
             ceres::Solver::Summary summary;
@@ -148,7 +148,9 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
 
         }
         //Sophus::SE3d newTransform = iterativeMean(transformsVec,20);
-        Sophus::SE3d newTransform = poseFusion(transformsVec, covVec, transformsVec[0]);
+        Eigen::Matrix4d ident = Eigen::Matrix4d::Identity();
+        Sophus::SE3d identity(ident);
+        Sophus::SE3d newTransform = poseFusion(transformsVec, covVec, currentTransform);
         double mse = (currentTransform.inverse()*newTransform).log().squaredNorm();
         if(mse < 0.001 || count>35)
             converged = true;
@@ -201,7 +203,7 @@ struct PoseFusionCostFunctor {
     bool operator()(T const* const parameters, T* residuals) const {
         Eigen::Map<Sophus::SE3<T> const> const testPose(parameters);
 
-        Eigen::Matrix<T,6,1> res = (poseInv_.cast<T>()*testPose).log();
+        Eigen::Matrix<T,6,1> res = (testPose*poseInv_.cast<T>()).log();
         residuals[0] = T(res.transpose()*covInv_.cast<T>()*res);
         return true;
     }
@@ -215,6 +217,9 @@ Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
         std::vector<Sophus::SE3d> const& poses,
         std::vector<Eigen::Matrix<double,6,6>> const& covs,
         Sophus::SE3d const &initTransform) {
+
+    if(poses.size() == 1)
+        return poses[0];
 
     ceres::Problem problem;
 
@@ -239,15 +244,15 @@ Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
             new ceres::AutoDiffCostFunction<PoseFusionCostFunctor,
                                             1,
                                             Sophus::SE3d::num_parameters> (c);
-        problem.AddResidualBlock(costFunction, NULL, fusedPose.data());
+        problem.AddResidualBlock(costFunction, new ceres::HuberLoss(10.0), fusedPose.data());
     }
 
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_QR;
     options.num_threads = 4;
-    options.max_num_iterations = 500;
-    options.gradient_tolerance = 0.01 * Sophus::Constants<double>::epsilon();
-    options.function_tolerance = 0.01 * Sophus::Constants<double>::epsilon();
+    options.max_num_iterations = 50000;
+    options.gradient_tolerance = 0.0001 * Sophus::Constants<double>::epsilon();
+    options.function_tolerance = 0.0001 * Sophus::Constants<double>::epsilon();
 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
