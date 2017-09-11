@@ -20,6 +20,10 @@ namespace semanticicp
         typedef typename std::shared_ptr< const SemanticCloud> SemanticCloudConstPtr;
 
         typedef std::vector< Eigen::Matrix3d, Eigen::aligned_allocator<Eigen::Matrix3d> > MatricesVector;
+        typedef std::vector< Eigen::Matrix<double,6,6>,
+                             Eigen::aligned_allocator<Eigen::Matrix<double,6,6> > >
+                                 CovarianceVector;
+
         typedef std::shared_ptr< MatricesVector > MatricesVectorPtr;
         typedef std::shared_ptr< const MatricesVector > MatricesVectorConstPtr;
 
@@ -73,7 +77,7 @@ namespace semanticicp
 
         Sophus::SE3d iterativeMean( std::vector<Sophus::SE3d> const& in, size_t maxIterations);
         Sophus::SE3d poseFusion( std::vector<Sophus::SE3d> const& poses,
-                                 std::vector<Eigen::Matrix<double,6,6>> const& covs,
+                                 CovarianceVector const& covs,
                                  Sophus::SE3d const &initTransform);
 
     };

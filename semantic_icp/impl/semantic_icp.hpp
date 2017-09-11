@@ -10,6 +10,8 @@
 #include <gicp_cost_functor_autodiff.h>
 #include <local_parameterization_se3.h>
 
+#include<Eigen/StdVector>
+
 namespace semanticicp
 {
 
@@ -30,7 +32,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
 
     while(converged!=true) {
         std::vector<Sophus::SE3d> transformsVec;
-        std::vector<Eigen::Matrix<double,6,6>> covVec;
+        CovarianceVector covVec;
         double mseHigh = 0;
         count++;
         for(SemanticT s:sourceCloud_->semanticLabels) {
@@ -215,7 +217,7 @@ struct PoseFusionCostFunctor {
 template <typename PointT, typename SemanticT>
 Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
         std::vector<Sophus::SE3d> const& poses,
-        std::vector<Eigen::Matrix<double,6,6>> const& covs,
+        CovarianceVector const& covs,
         Sophus::SE3d const &initTransform) {
 
     if(poses.size() == 1)

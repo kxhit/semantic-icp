@@ -97,9 +97,13 @@ main (int argc, char** argv)
     std::ofstream foutse3GICP;
     foutse3GICP.open(dateStr+"se3GICPkitti.csv");
 
+    std::ofstream foutBootstrap;
+    foutBootstrap.open(dateStr+"bootstrapkitti.csv");
+
     KittiMetrics semanticICPMetrics(strGTFile, &foutSICP);
     KittiMetrics se3GICPMetrics(strGTFile, &foutse3GICP);
     KittiMetrics GICPMetrics(strGTFile, &foutGICP);
+    KittiMetrics bootstrapMetrics(strGTFile, &foutBootstrap);
 
     for(size_t n = 0; n<500; n+=3) {
         std::cout << "Cloud# " << n << std::endl;
@@ -142,10 +146,13 @@ main (int argc, char** argv)
         //cloudB = semanticB->getpclPointCloud();
 
         //Sophus::SE3d initTransform = semanticICPMetrics.getGTtransfrom(n, n+3);
-        Eigen::Matrix4d temp = Eigen::Matrix4d::Identity();
-        //Bootstrap boot(cloudA, cloudB);
-        //Eigen::Matrix4d temp = (boot.align()).cast<double>();
+        //Eigen::Matrix4d temp = Eigen::Matrix4d::Identity();
+        Bootstrap boot(cloudA, cloudB);
+        Eigen::Matrix4d temp = (boot.align()).cast<double>();
         Sophus::SE3d initTransform(temp);
+        std::cout << "Bootstrap MSE "
+                  << bootstrapMetrics.evaluate(initTransform, indxTarget, indxSource)
+                  << std::endl;
 
         semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
         sicp.setInputSource(semanticA);

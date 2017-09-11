@@ -22,17 +22,25 @@ class Bootstrap
 
         Bootstrap(PointCloudPtr source, PointCloudPtr target) {
             PointCloudPtr tempA( new PointCloud() );
+            for(PointT p: *source) {
+                if( p.x < 35.0 && p.y < 35.0 && p.z <35.0 )
+                    tempA->push_back(p);
+            };
             pcl::VoxelGrid<PointT> sor;
-            sor.setInputCloud (source);
-            sor.setLeafSize (0.2f, 0.2f, 0.2f);
+            sor.setInputCloud (tempA);
+            sor.setLeafSize (0.4f, 0.4f, 0.4f);
             sor.filter (*tempA);
             sourceKeypoints_ = tempA;
             std::cout << "Source size: " << sourceKeypoints_->size() << std::endl;
             sourceFeatures_ = getFeatures(sourceKeypoints_, sourceKeypoints_);
             PointCloudPtr tempB ( new PointCloud() );
+            for(PointT p: *target) {
+                if( p.x < 35.0 && p.y < 35.0 && p.z <35.0 )
+                    tempB->push_back(p);
+            };
             pcl::VoxelGrid<PointT> tar;
-            tar.setInputCloud (target);
-            tar.setLeafSize (0.2f, 0.2f, 0.2f);
+            tar.setInputCloud (tempB);
+            tar.setLeafSize (0.4f, 0.4f, 0.4f);
             tar.filter (*tempB);
             targetKeypoints_ = tempB;
             std::cout << "Target size: " << targetKeypoints_->size() << std::endl;
@@ -48,8 +56,8 @@ class Bootstrap
             sac_ia.setSourceFeatures ( sourceFeatures_ );
             sac_ia.setInputTarget ( targetKeypoints_ );
             sac_ia.setTargetFeatures ( targetFeatures_ );
-            sac_ia.setMinSampleDistance (0.1f);
-            sac_ia.setMaxCorrespondenceDistance (0.4f);
+            sac_ia.setMinSampleDistance (0.4f);
+            sac_ia.setMaxCorrespondenceDistance (0.8f);
             sac_ia.setMaximumIterations (500);
             PointCloudPtr cloud ( new PointCloud () );
             sac_ia.align (*cloud);
