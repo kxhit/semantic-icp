@@ -220,6 +220,11 @@ Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
         CovarianceVector const& covs,
         Sophus::SE3d const &initTransform) {
 
+    for(size_t n =0; n<poses.size(); n++) {
+        std::cout << poses[n].matrix() << std::endl;
+        std::cout << covs[n] << std::endl;
+    }
+
     if(poses.size() == 1)
         return poses[0];
 
@@ -237,8 +242,8 @@ Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
     scale = 1.0/scale;
 
     for(size_t n =0; n<poses.size(); n++) {
-        std::cout << poses[n].matrix() << std::endl;
-        std::cout << covs[n] << std::endl;
+        //std::cout << poses[n].matrix() << std::endl;
+        //std::cout << covs[n] << std::endl;
         PoseFusionCostFunctor *c = new PoseFusionCostFunctor(poses[n].inverse(),
                                                              covs[n].inverse()*scale);
 

@@ -29,11 +29,11 @@ class KittiMetrics
         };
 
         double
-        evaluate(const Sophus::SE3d& transform, size_t poseIDA, size_t poseIDB) {
+        evaluate(const Sophus::SE3d& transform, size_t poseIDA, size_t poseIDB, int timeSeconds) {
             Sophus::SE3d transformGT = getGTtransfrom(poseIDA, poseIDB);
             Sophus::SE3d transformDiff = transformGT*transform.inverse();
             double transformError = transformDiff.log().squaredNorm();
-            double rotError = (transformDiff.rotationMatrix()-Eigen::Matrix3d::Identity()).squaredNorm();
+            double rotError = transformDiff.so3().log().squaredNorm();
             double transError = transformDiff.translation().squaredNorm();
 
             transformDiffs_.push_back(transformDiff);
@@ -46,7 +46,9 @@ class KittiMetrics
             transMSE_ += transError;
             count_++;
 
-            *out_ << transformError << ", " <<  rotError << ", " << transError;
+            *out_ << poseIDA << ", " << poseIDB << ", "
+                  << transformError << ", " <<  rotError << ", "
+                  << transError << ", " << timeSeconds;
             Eigen::Matrix<double,4,4,Eigen::RowMajor> temp = transformDiff.matrix();
             for( size_t i = 0, size = temp.size(); i<size; i++) {
                 *out_ << ", " << *(temp.data()+i);
