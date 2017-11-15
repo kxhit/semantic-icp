@@ -33,6 +33,15 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
     while(converged!=true) {
         std::vector<Sophus::SE3d> transformsVec;
         CovarianceVector covVec;
+
+        // Build The Problem
+        ceres::Problem problem;
+
+        // Add Sophus SE3 Parameter block with local parametrization
+        Sophus::SE3d estTransform(currentTransform);
+        problem.AddParameterBlock(estTransform.data(), Sophus::SE3d::num_parameters,
+                                  new LocalParameterizationSE3);
+
         double mseHigh = 0;
         count++;
         for(SemanticT s:sourceCloud_->semanticLabels) {
@@ -51,14 +60,6 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             KdTreePtr tree = targetCloud_->labeledKdTrees[s];
             std::vector<int> targetIndx;
             std::vector<float> distSq;
-
-            // Build The Problem
-            ceres::Problem problem;
-
-            // Add Sophus SE3 Parameter block with local parametrization
-            Sophus::SE3d estTransformation(currentTransform);
-            problem.AddParameterBlock(estTransformation.data(), Sophus::SE3d::num_parameters,
-                                      new LocalParameterizationSE3);
 
 
             std::cout << "Num Points: " << transformedSource->size() << std::endl;
@@ -96,24 +97,13 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                                                         1,
                                                         Sophus::SE3d::num_parameters>(c);
 
-                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(10.0),
-                                             estTransformation.data());
+                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(1.5),
+                                             estTransform.data());
                 }
 
             }
+            /*
             if( problem.NumResidualBlocks()>3 ) {
-            // Sovler Options
-            ceres::Solver::Options options;
-            options.gradient_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
-            options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
-            options.linear_solver_type = ceres::DENSE_QR;
-            options.num_threads = 4;
-            options.max_num_iterations = 400;
-
-            // Solve
-            ceres::Solver::Summary summary;
-            ceres::Solve(options, &problem, &summary);
-
             // Get Covariance
             ceres::Covariance::Options covOptions;
             ceres::Covariance cov(covOptions);
@@ -144,23 +134,37 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                 covVec.push_back(covMat);
             }
             }
-
+            */
             }
             }
 
         }
+        // Sovler Options
+        ceres::Solver::Options options;
+        options.gradient_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
+        options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
+        options.linear_solver_type = ceres::DENSE_QR;
+        options.num_threads = 4;
+        options.max_num_iterations = 400;
+
+        // Solve
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
+
+        /*
         //Sophus::SE3d newTransform = iterativeMean(transformsVec,20);
         Eigen::Matrix4d ident = Eigen::Matrix4d::Identity();
         Sophus::SE3d identity(ident);
         Sophus::SE3d newTransform = poseFusion(transformsVec, covVec, currentTransform);
-        double mse = (currentTransform.inverse()*newTransform).log().squaredNorm();
+        */
+        double mse = (currentTransform.inverse()*estTransform).log().squaredNorm();
         if(mse < 0.001 || count>35)
             converged = true;
         std::cout<< "MSE: " << mse << std::endl;
         std::cout<< "Transform: " << std::endl;
-        std::cout<< newTransform.matrix() << std::endl;
+        std::cout<< estTransform.matrix() << std::endl;
         std::cout<< "Itteration: " << count << std::endl;
-        currentTransform = newTransform;
+        currentTransform = estTransform;
     }
 
     finalTransformation_ = currentTransform;

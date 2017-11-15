@@ -16,6 +16,7 @@
 #include <pcl_2_semantic.h>
 #include "kitti_metrics.h"
 #include "bootstrap.h"
+#include "filter_range.h"
 
 
 
@@ -105,7 +106,7 @@ main (int argc, char** argv)
     KittiMetrics GICPMetrics(strGTFile, &foutGICP);
     KittiMetrics bootstrapMetrics(strGTFile, &foutBootstrap);
 
-    for(size_t n = 1248; n<(pcd_fns.size()-3); n+=3) {
+    for(size_t n = 0; n<(pcd_fns.size()-3); n+=3) {
         std::cout << "Cloud# " << n << std::endl;
         size_t indxTarget = n;
         size_t indxSource = indxTarget + 3;
@@ -118,6 +119,8 @@ main (int argc, char** argv)
             PCL_ERROR ("Couldn't read source file\n");
             return (-1);
         }
+
+        filterRange(cloudA, 40.0);
 
         std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
             semanticA (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
@@ -135,6 +138,8 @@ main (int argc, char** argv)
             PCL_ERROR ("Couldn't read target file\n");
             return (-1);
         }
+
+        filterRange(cloudB, 40.0);
 
         std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
             semanticB (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
@@ -211,6 +216,7 @@ main (int argc, char** argv)
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
         gicp.setInputCloud(cloudA);
         gicp.setInputTarget(cloudB);
+        gicp.setMaxCorrespondenceDistance(1.5);
         pcl::PointCloud<pcl::PointXYZL> final1;
 
         begin = std::chrono::steady_clock::now();
