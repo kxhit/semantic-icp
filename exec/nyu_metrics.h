@@ -1,6 +1,8 @@
 #ifndef _NYU_METRICS_H_
 #define _NYU_METRICS_H_
 
+#include <cmath>
+
 #include "csv.h"
 
 class NYUMetrics
@@ -43,6 +45,7 @@ class NYUMetrics
 
             double inlier = 0;
             double total = 0;
+            double dist = 0;
             KdTreePtr tree(new KdTree());
             tree->setInputCloud(target);
 
@@ -59,6 +62,7 @@ class NYUMetrics
 
                     out << labelSource << ", " << labelTarget << std::endl;
                     total++;
+                    dist+= sqrt(nn_dist_sq[0]);
                     if(labelSource==labelTarget)
                         inlier++;
                 }
@@ -66,10 +70,16 @@ class NYUMetrics
             out.close();
 
             std::ofstream matrixOut;
-            matrixOut.open(outName_);
+            matrixOut.open("Matrix"+outName_);
             matrixOut << confusion_;
             matrixOut.close();
-            
+
+            std::ofstream sumOut;
+            sumOut.open(outName_, std::ios_base::app | std::ios_base::out);
+            sumOut << num << ", " << inlier/total << ", "
+                   << dist/total << ", " << total << std::endl;
+            sumOut.close();
+
             return inlier/total;
         };
 

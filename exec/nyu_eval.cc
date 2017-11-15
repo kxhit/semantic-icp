@@ -88,9 +88,9 @@ main (int argc, char** argv)
     std::ofstream foutse3GICP;
     foutse3GICP.open(dateStr+"se3GICPnyu.csv");
 */
-    NYUMetrics semanticICPMetrics(strTestFile, dateStr+"SICPnyu.csv", 51);
-    NYUMetrics se3GICPMetrics(strTestFile, dateStr+"se3GICPnyu.csv", 51);
-    NYUMetrics GICPMetrics(strTestFile, dateStr+"GICPnyu.csv", 51);
+    NYUMetrics semanticICPMetrics(strTestFile, dateStr+"SICPnyu.csv", 0);
+    NYUMetrics se3GICPMetrics(strTestFile, dateStr+"se3GICPnyu.csv", 0);
+    NYUMetrics GICPMetrics(strTestFile, dateStr+"GICPnyu.csv", 0);
 
     while(semanticICPMetrics.morePairs()) {
         std::vector<size_t> pairs = semanticICPMetrics.getPairs();

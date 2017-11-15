@@ -43,14 +43,31 @@ namespace semanticicp {
 
             if(jacobians!= NULL && jacobians[0] != NULL) {
                 double *jacobian = jacobians[0];
-                Eigen::Vector3d base_point = base_transform_*point_source_;
-                Eigen::Matrix3d dR = base_point * dT.transpose();
+                //Eigen::Vector3d base_point = base_transform_*point_source_;
+                Eigen::Matrix3d dR = Eigen::Matrix3d::Zero();
+                Eigen::Matrix3d J;
+                Eigen::Matrix3d dM;
+                Eigen::Vector3d dres;
+                for(int i = 0; i < 3; i++) {
+                    for(int j = 0; j < 3; j++) {
+                        J.setZero();
+                        J(i,j) = 1;
+                        dM = R.transpose()*cov_source_*J+J.transpose()*cov_source_*R;
+                        dres =  J*res;
+                        double v = res.dot(M*dres)+res.dot(M*dM*M*res);
+                        dR(i,j) = v;
+                    }
+                }
                 dT *= 2.0;
                 dR *= 2.0;
-                Sophus::SE3<double> d_transform(dR, dT);
-                std::copy(d_transform.data(),
-                          d_transform.data() + Sophus::SE3d::num_parameters,
-                          jacobian);
+                Eigen::Quaterniond dq = dRtodq(dR, transform_.unit_quaternion());
+                jacobian[4] = dT(0);
+                jacobian[5] = dT(1);
+                jacobian[6] = dT(2);
+                jacobian[3] = dq.w();
+                jacobian[0] = dq.x();
+                jacobian[1] = dq.y();
+                jacobian[2] = dq.z();
             }
             return true;
         };
@@ -61,6 +78,41 @@ namespace semanticicp {
         Eigen::Matrix3d cov_source_;
         Eigen::Matrix3d cov_target_;
         Sophus::SE3<double> base_transform_;
+
+        Eigen::Quaterniond dRtodq(const Eigen::Matrix3d dR, const Eigen::Quaterniond q)  const {
+            Eigen::Quaterniond out;
+            double w = q.w();
+            double x = q.x();
+            double y = q.y();
+            double z = q.z();
+
+            Eigen::Matrix3d dRdw;
+            dRdw <<     0.0, -2.0*z,  2.0*y,
+                      2.0*z,    0.0, -2.0*x,
+                     -2.0*y,  2.0*x,    0.0;
+            out.w() = (dR.array()*dRdw.array()).sum();
+
+            Eigen::Matrix3d dRdx;
+            dRdx <<     0.0,  2.0*y,  2.0*z,
+                      2.0*y, -4.0*x, -2.0*w,
+                      2.0*z,  2.0*w, -4.0*x;
+            out.x() = (dR.array()*dRdx.array()).sum();
+
+            Eigen::Matrix3d dRdy;
+            dRdy <<  -4.0*y,  2.0*x,  2.0*w,
+                      2.0*x,    0.0,  2.0*z,
+                     -2.0*w,  2.0*z, -4.0*y;
+            out.y() = (dR.array()*dRdy.array()).sum();
+
+            Eigen::Matrix3d dRdz;
+            dRdz <<  -4.0*z, -2.0*w,  2.0*x,
+                      2.0*w, -4.0*z,  2.0*y,
+                      2.0*x,  2.0*y,    0.0;
+            out.z() = (dR.array()*dRdz.array()).sum();
+
+            return out;
+        }
+
     };
 
 } // namspace semanticicp

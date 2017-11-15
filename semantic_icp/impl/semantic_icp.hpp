@@ -7,7 +7,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
 
-#include <gicp_cost_functor_autodiff.h>
+//#include <gicp_cost_functor_autodiff.h>
+#include <gicp_cost_function.h>
 #include <local_parameterization_se3.h>
 
 #include<Eigen/StdVector>
@@ -86,16 +87,23 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                     //    std::cout << transformedSourcePoint << std::endl;
                     //}
 
-                    GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(sourcePoint,
+                    //   Autodif Cost function
+                    //GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(sourcePoint,
+                    //                                                       targetPoint,
+                    //                                                       sourceCov,
+                    //                                                       targetCov,
+                    //                                                       baseTransformation_);
+                    //ceres::CostFunction* cost_function =
+                    //    new ceres::AutoDiffCostFunction<GICPCostFunctorAutoDiff,
+                    //                                    1,
+                    //                                    Sophus::SE3d::num_parameters>(c);
+
+                    //   Analytical Cost Function
+                    ceres::CostFunction* cost_function = new GICPCostFunction(sourcePoint,
                                                                            targetPoint,
                                                                            sourceCov,
                                                                            targetCov,
                                                                            baseTransformation_);
-                    ceres::CostFunction* cost_function =
-                        new ceres::AutoDiffCostFunction<GICPCostFunctorAutoDiff,
-                                                        1,
-                                                        Sophus::SE3d::num_parameters>(c);
-
                     problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(10.0),
                                              estTransformation.data());
                 }
@@ -109,6 +117,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
             options.linear_solver_type = ceres::DENSE_QR;
             options.num_threads = 4;
             options.max_num_iterations = 400;
+            //options.check_gradients = true;
 
             // Solve
             ceres::Solver::Summary summary;
@@ -135,7 +144,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
 
 
             // Print Results
-            std::cout << summary.BriefReport() << std::endl;
+            std::cout << summary.FullReport() << std::endl;
             double mse = (currentTransform.inverse()*estTransformation).log().squaredNorm();
             std::cout << "label transform squared difference: " << mse << std::endl;
 
