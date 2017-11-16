@@ -16,6 +16,7 @@
 #include <pcl_2_semantic.h>
 #include "kitti_metrics.h"
 #include "bootstrap.h"
+#include "filter_range.h"
 
 
 
@@ -98,14 +99,14 @@ main (int argc, char** argv)
     foutse3GICP.open(dateStr+"se3GICPkitti.csv");
 
     std::ofstream foutBootstrap;
-    foutBootstrap.open(dateStr+"bootstrapkitti.csv");
+    foutBootstrap.open(dateStr+"initkitti.csv");
 
     KittiMetrics semanticICPMetrics(strGTFile, &foutSICP);
     KittiMetrics se3GICPMetrics(strGTFile, &foutse3GICP);
     KittiMetrics GICPMetrics(strGTFile, &foutGICP);
     KittiMetrics bootstrapMetrics(strGTFile, &foutBootstrap);
 
-    for(size_t n = 0; n<500; n+=3) {
+    for(size_t n = 0; n<(pcd_fns.size()-3); n+=3) {
         std::cout << "Cloud# " << n << std::endl;
         size_t indxTarget = n;
         size_t indxSource = indxTarget + 3;
@@ -118,6 +119,8 @@ main (int argc, char** argv)
             PCL_ERROR ("Couldn't read source file\n");
             return (-1);
         }
+
+        filterRange(cloudA, 40.0);
 
         std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
             semanticA (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
@@ -136,6 +139,8 @@ main (int argc, char** argv)
             return (-1);
         }
 
+        filterRange(cloudB, 40.0);
+
         std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
             semanticB (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
 
@@ -145,27 +150,31 @@ main (int argc, char** argv)
         semanticB->removeSemanticClass( 11 );
         //cloudB = semanticB->getpclPointCloud();
 
+        auto begin = std::chrono::steady_clock::now();
         //Sophus::SE3d initTransform = semanticICPMetrics.getGTtransfrom(n, n+3);
-        //Eigen::Matrix4d temp = Eigen::Matrix4d::Identity();
-        Bootstrap boot(cloudA, cloudB);
-        Eigen::Matrix4d temp = (boot.align()).cast<double>();
+        Eigen::Matrix4d temp = Eigen::Matrix4d::Identity();
+        //Bootstrap boot(cloudA, cloudB);
+        //Eigen::Matrix4d temp = (boot.align()).cast<double>();
         Sophus::SE3d initTransform(temp);
-        std::cout << "Bootstrap MSE "
-                  << bootstrapMetrics.evaluate(initTransform, indxTarget, indxSource)
+        auto end = std::chrono::steady_clock::now();
+        int timeInit = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
+        std::cout << "Init MSE "
+                  << bootstrapMetrics.evaluate(initTransform, indxTarget, indxSource, timeInit)
                   << std::endl;
 
         semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
         sicp.setInputSource(semanticA);
         sicp.setInputTarget(semanticB);
 
-        auto begin = std::chrono::steady_clock::now();
+        begin = std::chrono::steady_clock::now();
         sicp.align(semanticA, initTransform);
-        auto end = std::chrono::steady_clock::now();
+        end = std::chrono::steady_clock::now();
+        int timeSICP = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
         std::cout << "Time Multiclass: "
-                << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
+                << timeSICP << std::endl;
         Sophus::SE3d sicpTranform = sicp.getFinalTransFormation();
         std::cout << "SICP MSE: "
-                  << semanticICPMetrics.evaluate(sicpTranform, indxTarget, indxSource)
+                  << semanticICPMetrics.evaluate(sicpTranform, indxTarget, indxSource, timeSICP)
                   << std::endl;
 
         for(size_t t = 0; t< cloudA->points.size(); t++){
@@ -196,29 +205,32 @@ main (int argc, char** argv)
         begin = std::chrono::steady_clock::now();
         sicp2.align(semanticAnoL, initTransform);
         end = std::chrono::steady_clock::now();
+        int timese3GICP = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
         std::cout << "Time Single Class: "
-                  << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
+                  << timese3GICP << std::endl;
         Sophus::SE3d gicpTransform = sicp2.getFinalTransFormation();
         std::cout << "se3GICP MSE: "
-                  << se3GICPMetrics.evaluate(gicpTransform, indxTarget, indxSource)
+                  << se3GICPMetrics.evaluate(gicpTransform, indxTarget, indxSource, timese3GICP)
                   << std::endl;
 
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
         gicp.setInputCloud(cloudA);
         gicp.setInputTarget(cloudB);
+        gicp.setMaxCorrespondenceDistance(1.5);
         pcl::PointCloud<pcl::PointXYZL> final1;
 
         begin = std::chrono::steady_clock::now();
         gicp.align(final1, (initTransform.matrix()).cast<float>());
         end = std::chrono::steady_clock::now();
+        int timeGICP = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
         std::cout << "Time GICP: "
-                  << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
+                  << timeGICP << std::endl;
         Eigen::Matrix4f mat = gicp.getFinalTransformation();
         std::cout << "Final GICP Transform\n";
         std::cout << mat << std::endl;
         Sophus::SE3d gicpTransform2(mat.cast<double>());
         std::cout << "GICP MSE: "
-                  << GICPMetrics.evaluate(gicpTransform2, indxTarget, indxSource)
+                  << GICPMetrics.evaluate(gicpTransform2, indxTarget, indxSource, timeGICP)
                   << std::endl;
 
     }

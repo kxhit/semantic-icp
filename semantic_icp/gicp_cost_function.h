@@ -79,36 +79,82 @@ namespace semanticicp {
         Eigen::Matrix3d cov_target_;
         Sophus::SE3<double> base_transform_;
 
+        inline
         Eigen::Quaterniond dRtodq(const Eigen::Matrix3d dR, const Eigen::Quaterniond q)  const {
             Eigen::Quaterniond out;
-            double w = q.w();
-            double x = q.x();
-            double y = q.y();
-            double z = q.z();
+            const double tx  = double(2)*q.x();
+            const double ty  = double(2)*q.y();
+            const double tz  = double(2)*q.z();
+            const double tw  = double(2)*q.w();
+            const double mfx  = double(-2)*tx;
+            const double mfy  = double(-2)*ty;
+            const double mfz  = double(-2)*tz;
+            const double mtw  = double(-1)*tw;
+
+            /* Eigen Quat to Rot
+            res.coeffRef(0,0) = Scalar(1)-(tyy+tzz);
+            res.coeffRef(0,1) = txy-twz;
+            res.coeffRef(0,2) = txz+twy;
+            res.coeffRef(1,0) = txy+twz;
+            res.coeffRef(1,1) = Scalar(1)-(txx+tzz);
+            res.coeffRef(1,2) = tyz-twx;
+            res.coeffRef(2,0) = txz-twy;
+            res.coeffRef(2,1) = tyz+twx;
+            res.coeffRef(2,2) = Scalar(1)-(txx+tyy);
+            */
+
 
             Eigen::Matrix3d dRdw;
-            dRdw <<     0.0, -2.0*z,  2.0*y,
-                      2.0*z,    0.0, -2.0*x,
-                     -2.0*y,  2.0*x,    0.0;
-            out.w() = (dR.array()*dRdw.array()).sum();
+            dRdw(0,0) = double(0);
+            dRdw(0,1) = -tz;
+            dRdw(0,2) = ty;
+            dRdw(1,0) = tz;
+            dRdw(1,1) = double(0);
+            dRdw(1,2) = -tx;
+            dRdw(2,0) = -ty;
+            dRdw(2,1) = tx;
+            dRdw(2,2) = double(0);
+
+            out.w() = (dR.transpose()*dRdw).trace();
 
             Eigen::Matrix3d dRdx;
-            dRdx <<     0.0,  2.0*y,  2.0*z,
-                      2.0*y, -4.0*x, -2.0*w,
-                      2.0*z,  2.0*w, -4.0*x;
-            out.x() = (dR.array()*dRdx.array()).sum();
+            dRdx(0,0) = double(0);
+            dRdx(0,1) = ty;
+            dRdx(0,2) = tz;
+            dRdx(1,0) = ty;
+            dRdx(1,1) = mfx;
+            dRdx(1,2) = mtw;
+            dRdx(2,0) = tz;
+            dRdx(2,1) = tw;
+            dRdx(2,2) = mfx;
+
+            out.x() = (dR.transpose()*dRdx).trace();
 
             Eigen::Matrix3d dRdy;
-            dRdy <<  -4.0*y,  2.0*x,  2.0*w,
-                      2.0*x,    0.0,  2.0*z,
-                     -2.0*w,  2.0*z, -4.0*y;
-            out.y() = (dR.array()*dRdy.array()).sum();
+            dRdy(0,0) = mfy;
+            dRdy(0,1) = tx;
+            dRdy(0,2) = tw;
+            dRdy(1,0) = tx;
+            dRdy(1,1) = double(0);
+            dRdy(1,2) = tz;
+            dRdy(2,0) = mtw;
+            dRdy(2,1) = tz;
+            dRdy(2,2) = mfy;
+
+            out.y() = (dR.transpose()*dRdy).trace();
 
             Eigen::Matrix3d dRdz;
-            dRdz <<  -4.0*z, -2.0*w,  2.0*x,
-                      2.0*w, -4.0*z,  2.0*y,
-                      2.0*x,  2.0*y,    0.0;
-            out.z() = (dR.array()*dRdz.array()).sum();
+            dRdz(0,0) = mfz;
+            dRdz(0,1) = mtw;
+            dRdz(0,2) = tx;
+            dRdz(1,0) = tw;
+            dRdz(1,1) = mfz;
+            dRdz(1,2) = ty;
+            dRdz(2,0) = tx;
+            dRdz(2,1) = ty;
+            dRdz(2,2) = double(0);
+
+            out.z() = (dR.transpose()*dRdz).trace();
 
             return out;
         }
