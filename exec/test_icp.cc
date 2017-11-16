@@ -49,7 +49,9 @@ main (int argc, char** argv)
         semanticA (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
 
     semanticicp::pcl_2_semantic(cloudA, semanticA);
-    //semanticA->removeSemanticClass( 0 );
+    semanticA->removeSemanticClass( 3 );
+    semanticA->removeSemanticClass( 10 );
+    semanticA->removeSemanticClass( 11 );
 
     pcl::PointCloud<pcl::PointXYZL>::Ptr cloudB (new pcl::PointCloud<pcl::PointXYZL>);
 
@@ -67,6 +69,9 @@ main (int argc, char** argv)
         semanticB (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
 
     semanticicp::pcl_2_semantic(cloudB, semanticB);
+    semanticB->removeSemanticClass( 3 );
+    semanticB->removeSemanticClass( 10 );
+    semanticB->removeSemanticClass( 11 );
 
     semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
     sicp.setInputSource(semanticA);
