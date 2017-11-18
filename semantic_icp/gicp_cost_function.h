@@ -27,40 +27,30 @@ namespace semanticicp {
                                double* residuals,
                                double** jacobians) const {
             Eigen::Map<Sophus::SE3<double> const> const transform_(parameters[0]);
-            Eigen::Matrix3d R = transform_.rotationMatrix();
+            Sophus::SE3d transform2_ = transform_*base_transform_;
+            Eigen::Matrix3d R = transform2_.rotationMatrix();
             Eigen::Matrix3d M = R*cov_source_;
             Eigen::Matrix3d temp = M*R.transpose();
             temp += cov_target_;
             M = temp.inverse();
 
-            //std::cout << "Source: \n" << cov_source_ << std::endl;
-            //std::cout << "Target: \n" << cov_target_ << std::endl;
-            Eigen::Vector3d transformed_point_source_ = transform_*point_source_;
+            Eigen::Vector3d transformed_point_source_ = transform2_*point_source_;
             Eigen::Vector3d res = transformed_point_source_-point_target_;
             Eigen::Vector3d dT = M*res;
             residuals[0] = double(res.transpose() * dT);
-            //std::cout << "Mahal: \n" << M << std::endl;
 
             if(jacobians!= NULL && jacobians[0] != NULL) {
                 double *jacobian = jacobians[0];
-                //Eigen::Vector3d base_point = base_transform_*point_source_;
-                Eigen::Matrix3d dR = Eigen::Matrix3d::Zero();
-                Eigen::Matrix3d J;
-                Eigen::Matrix3d dM;
-                Eigen::Vector3d dres;
-                for(int i = 0; i < 3; i++) {
-                    for(int j = 0; j < 3; j++) {
-                        J.setZero();
-                        J(i,j) = 1;
-                        dM = R.transpose()*cov_source_*J+J.transpose()*cov_source_*R;
-                        dres =  J*res;
-                        double v = res.dot(M*dres)+res.dot(M*dM*M*res);
-                        dR(i,j) = v;
-                    }
-                }
+
+                // dR is messy, can be cleaned up, taken from
+                // http://www.matrixcalculus.org/
+                Eigen::Matrix3d dR;
+                dR = (M*res*point_source_.transpose()+cov_source_*R*M*res*(res.transpose()*M)
+                     +cov_source_*R*M*res
+                     *(res.transpose()*M)+M.transpose()*res*point_source_.transpose());
+
                 dT *= 2.0;
-                dR *= 2.0;
-                Eigen::Quaterniond dq = dRtodq(dR, transform_.unit_quaternion());
+                Eigen::Quaterniond dq = dRtodq(dR, transform2_.unit_quaternion());
                 jacobian[4] = dT(0);
                 jacobian[5] = dT(1);
                 jacobian[6] = dT(2);
@@ -79,6 +69,8 @@ namespace semanticicp {
         Eigen::Matrix3d cov_target_;
         Sophus::SE3<double> base_transform_;
 
+        // Derivative of Rotation Matrix with respect to quaternion
+        // Used in Chain Rule
         inline
         Eigen::Quaterniond dRtodq(const Eigen::Matrix3d dR, const Eigen::Quaterniond q)  const {
             Eigen::Quaterniond out;
