@@ -36,8 +36,8 @@ void SemanticViewer<PointT, SemanticT>::runVisualizer () {
 
     pcl::visualization::PCLVisualizer viewer ("Semantic Viewer");
 
-    viewer.setBackgroundColor (0, 0, 0);
-    viewer.addCoordinateSystem (1.0);
+    viewer.setBackgroundColor (255, 255, 255);
+    viewer.addCoordinateSystem (0.25);
     viewer.initCameraParameters ();
 
     while (!viewer.wasStopped ())

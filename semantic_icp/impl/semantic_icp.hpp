@@ -7,10 +7,12 @@
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
 
-#include <gicp_cost_functor_autodiff.h>
+//#include <gicp_cost_functor_autodiff.h>
+#include <gicp_cost_function.h>
 #include <local_parameterization_se3.h>
 
 #include<Eigen/StdVector>
+#include<ceres/gradient_checker.h>
 
 namespace semanticicp
 {
@@ -26,7 +28,6 @@ template <typename PointT, typename SemanticT>
 void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
         SemanticCloudPtr finalCloud, Sophus::SE3d &initTransform) {
     Sophus::SE3d currentTransform(initTransform);
-    //std::cout << "Init Transform\n" << initTransform.matrix() << std::endl;
     bool converged = false;
     size_t count = 0;
 
@@ -47,12 +48,10 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
         for(SemanticT s:sourceCloud_->semanticLabels) {
             std::cout << "Label: " << s << std::endl;
             if (targetCloud_->labeledPointClouds.find(s) != targetCloud_->labeledPointClouds.end()) {
-            //if (sourceCloud_->labeledPointClouds[s]->size()>1400) {
             if (sourceCloud_->labeledPointClouds[s]->size()>400) {
             typename pcl::PointCloud<PointT>::Ptr transformedSource (new pcl::PointCloud<PointT>());
             Sophus::SE3d transform = currentTransform;
             Eigen::Matrix4d transMat = transform.matrix();
-            // std::cout << "init transform\n" << transMat;
             pcl::transformPointCloud(*(sourceCloud_->labeledPointClouds[s]),
                                     *transformedSource,
                                     transMat);
@@ -68,7 +67,6 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
 
                 tree->nearestKSearch(transformedSourcePoint, 1, targetIndx, distSq);
                 if( distSq[0] < 250 ) {
-                //if( true ) {
                     const PointT &sourcePoint =
                         (sourceCloud_->labeledPointClouds[s])->points[sourceIndx];
                     const Eigen::Matrix3d &sourceCov =
@@ -78,65 +76,52 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                     const Eigen::Matrix3d &targetCov =
                         (targetCloud_->labeledCovariances[s])->at(targetIndx[0]);
 
-                    //if(std::isnan(targetCov(1,1))){
-                    //    std::cout << "Sqdist: " << distSq[0]<<std::endl;
-                    //    std::cout << sourcePoint << std::endl;
-                    //    std::cout << sourceCov << std::endl;
-                    //    std::cout << targetPoint << std::endl;
-                    //    std::cout << targetCov << std::endl;
-                    //    std::cout << transformedSourcePoint << std::endl;
-                    //}
+                    //   Autodif Cost function
+                    //GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(sourcePoint,
+                    //                                                       targetPoint,
+                    //                                                       sourceCov,
+                    //                                                       targetCov,
+                    //                                                       baseTransformation_);
+                    //ceres::CostFunction* cost_function =
+                    //    new ceres::AutoDiffCostFunction<GICPCostFunctorAutoDiff,
+                    //                                    1,
+                    //                                    Sophus::SE3d::num_parameters>(c);
 
-                    GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(sourcePoint,
+                    //   Analytical Cost Function
+                    ceres::CostFunction* cost_function = new GICPCostFunction(sourcePoint,
                                                                            targetPoint,
                                                                            sourceCov,
                                                                            targetCov,
                                                                            baseTransformation_);
-                    ceres::CostFunction* cost_function =
-                        new ceres::AutoDiffCostFunction<GICPCostFunctorAutoDiff,
-                                                        1,
-                                                        Sophus::SE3d::num_parameters>(c);
-
                     problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(0.5),
                                              estTransform.data());
+
+                    // Gradient Check
+                    if (false) {
+                        ceres::NumericDiffOptions numeric_diff_options;
+                        numeric_diff_options.relative_step_size = 1e-8;
+
+                        std::vector<const ceres::LocalParameterization*> lp;
+                        lp.push_back(new LocalParameterizationSE3);
+
+                        ceres::GradientChecker gradient_checker(cost_function,
+                                    &lp,
+                                    numeric_diff_options);
+
+                        ceres::GradientChecker::ProbeResults results;
+                        std::vector<double *> params;
+                        params.push_back(estTransform.data());
+                        if (!gradient_checker.Probe(params.data(), 1e-1, &results)) {
+                                std::cout << "An error has occurred:\n";
+                                std::cout << results.error_log;
+                        }
+                    }
+
                 }
 
-            }
-            /*
-            if( problem.NumResidualBlocks()>3 ) {
-            // Get Covariance
-            ceres::Covariance::Options covOptions;
-            ceres::Covariance cov(covOptions);
-
-            std::vector<std::pair<const double*, const double*>> covBlocks;
-            covBlocks.push_back(std::make_pair(estTransformation.data(),
-                                               estTransformation.data()));
-
-            bool goodCov = cov.Compute(covBlocks, &problem);
-            Eigen::Matrix<double, 6,6> covMat;
-            double temp[6*6];
-            if ( goodCov )
-                cov.GetCovarianceBlockInTangentSpace(estTransformation.data(),
-                                                     estTransformation.data(),
-                                                     temp);
-            covMat = Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>>(temp);
-            covMat = covMat;
-            //covMat = Eigen::Matrix<double, 6, 6>::Identity();
-
-
-            // Print Results
-            std::cout << summary.BriefReport() << std::endl;
-            double mse = (currentTransform.inverse()*estTransformation).log().squaredNorm();
-            std::cout << "label transform squared difference: " << mse << std::endl;
-
-            if( summary.IsSolutionUsable() && goodCov ) {
-                transformsVec.push_back(estTransformation);
-                covVec.push_back(covMat);
-            }
-            }
-            */
-            }
-            }
+            } // For loop over points
+            } // If (numpoints)
+            } // If semantic is in target
 
         }
         // Sovler Options
@@ -146,17 +131,15 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
         options.linear_solver_type = ceres::DENSE_QR;
         options.num_threads = 4;
         options.max_num_iterations = 400;
+       // options.check_gradients = true;
+        options.gradient_check_numeric_derivative_relative_step_size = 1e-8;
+        options.gradient_check_relative_precision = 1e-6;
 
         // Solve
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
+        std::cout << summary.FullReport() << std::endl;
 
-        /*
-        //Sophus::SE3d newTransform = iterativeMean(transformsVec,20);
-        Eigen::Matrix4d ident = Eigen::Matrix4d::Identity();
-        Sophus::SE3d identity(ident);
-        Sophus::SE3d newTransform = poseFusion(transformsVec, covVec, currentTransform);
-        */
         double mse = (currentTransform.inverse()*estTransform).log().squaredNorm();
         if(mse < 0.001 || count>35)
             converged = true;

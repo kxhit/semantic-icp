@@ -42,9 +42,16 @@ main (int argc, char** argv)
               << std::endl;
 
     std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
+        semanticAfinal (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
+
+    semanticicp::pcl_2_semantic(cloudA, semanticAfinal);
+    std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
         semanticA (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
 
     semanticicp::pcl_2_semantic(cloudA, semanticA);
+    semanticA->removeSemanticClass( 3 );
+    semanticA->removeSemanticClass( 10 );
+    semanticA->removeSemanticClass( 11 );
 
     pcl::PointCloud<pcl::PointXYZL>::Ptr cloudB (new pcl::PointCloud<pcl::PointXYZL>);
 
@@ -62,13 +69,16 @@ main (int argc, char** argv)
         semanticB (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
 
     semanticicp::pcl_2_semantic(cloudB, semanticB);
+    semanticB->removeSemanticClass( 3 );
+    semanticB->removeSemanticClass( 10 );
+    semanticB->removeSemanticClass( 11 );
 
     semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
     sicp.setInputSource(semanticA);
     sicp.setInputTarget(semanticB);
 
     auto begin = std::chrono::steady_clock::now();
-    sicp.align(semanticA);
+    sicp.align(semanticAfinal);
     auto end = std::chrono::steady_clock::now();
     std::cout << "Time Multiclass: "
               << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
@@ -119,18 +129,22 @@ main (int argc, char** argv)
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudBnoL (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::io::loadPCDFile<pcl::PointXYZ> (strTarget, *cloudBnoL);
 
-    pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp;
-    gicp.setInputCloud(cloudAnoL);
-    gicp.setInputTarget(cloudBnoL);
-    pcl::PointCloud<pcl::PointXYZ> final1;
-    gicp.align(final1);
+    pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
+    gicp.setInputCloud(cloudA);
+    gicp.setInputTarget(cloudB);
+    pcl::PointCloud<pcl::PointXYZL>::Ptr final1(new pcl::PointCloud<pcl::PointXYZL>());
+    gicp.align(*final1);
 
     std::cout << "GICP transform: \n" << gicp.getFinalTransformation() << std::endl;
 
+    std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
+        gicpFinal (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
+
+    semanticicp::pcl_2_semantic(final1, gicpFinal);
     semanticicp::SemanticViewer<pcl::PointXYZ, uint32_t> viewer;
-    viewer.addSemanticPointCloudSingleColor( semanticB, 255, 0, 0, "Target");
-    viewer.addSemanticPointCloudSingleColor( semanticA, 0, 255, 0, "GICP");
-    viewer.addSemanticPointCloudSingleColor( semanticAnoL, 0, 0, 255, "Semantic ICP");
+    viewer.addSemanticPointCloudSingleColor( semanticB, 231,41,138, "Target");
+    viewer.addSemanticPointCloudSingleColor( semanticAfinal, 27,158,119, "GICP");
+    viewer.addSemanticPointCloudSingleColor( gicpFinal, 217,95,2, "Semantic ICP");
 
     while(!viewer.wasStopped()) {
         std::this_thread::sleep_for (std::chrono::microseconds (100000));
