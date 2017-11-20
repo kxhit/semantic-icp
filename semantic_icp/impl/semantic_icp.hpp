@@ -97,7 +97,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                                                         1,
                                                         Sophus::SE3d::num_parameters>(c);
 
-                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(1.5),
+                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(0.5),
                                              estTransform.data());
                 }
 
