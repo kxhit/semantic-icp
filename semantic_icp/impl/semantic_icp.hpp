@@ -93,7 +93,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                                                                            sourceCov,
                                                                            targetCov,
                                                                            baseTransformation_);
-                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(0.5),
+                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(1.5),
                                              estTransform.data());
 
                     // Gradient Check
