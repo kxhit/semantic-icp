@@ -99,7 +99,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                     // Gradient Check
                     if (false) {
                         ceres::NumericDiffOptions numeric_diff_options;
-                        numeric_diff_options.relative_step_size = 1e-8;
+                        numeric_diff_options.relative_step_size = 1e-13;
 
                         std::vector<const ceres::LocalParameterization*> lp;
                         lp.push_back(new LocalParameterizationSE3);
@@ -111,9 +111,17 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                         ceres::GradientChecker::ProbeResults results;
                         std::vector<double *> params;
                         params.push_back(estTransform.data());
-                        if (!gradient_checker.Probe(params.data(), 1e-1, &results)) {
+                        if (!gradient_checker.Probe(params.data(), 5e-4, &results)) {
                                 std::cout << "An error has occurred:\n";
                                 std::cout << results.error_log;
+                                std::cout << results.jacobians[0] << std::endl;
+                                std::cout << results.numeric_jacobians[0] << std::endl;
+                                std::cout << estTransform.matrix() << std::endl;
+                                std::cout << sourcePoint << std::endl;
+                                std::cout << targetPoint << std::endl;
+                                std::cout << sourceCov << std::endl;
+                                std::cout << targetCov << std::endl;
+
                         }
                     }
 
