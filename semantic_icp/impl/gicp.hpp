@@ -1,11 +1,12 @@
-#ifndef SEMANTIC_ICP_HPP_
-#define SEMANTIC_ICP_HPP_
+#ifndef GICP_HPP_
+#define GICP_HPP_
 
 #include <iostream>
 
 #include <ceres/ceres.h>
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
+#include <pcl/kdtree/kdtree_flann.h>
 
 //#include <gicp_cost_functor_autodiff.h>
 #include <gicp_cost_function.h>
@@ -17,16 +18,20 @@
 namespace semanticicp
 {
 
-template <typename PointT, typename SemanticT>
-void SemanticIterativeClosestPoint<PointT,SemanticT>::align(SemanticCloudPtr finalCloud) {
+template <typename PointT>
+void GICP<PointT>::align(PointCloudPtr finalCloud) {
     Eigen::Matrix4d mat = Eigen::Matrix4d::Identity();
     Sophus::SE3d init(mat);
     align(finalCloud, init);
 };
 
-template <typename PointT, typename SemanticT>
-void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
-        SemanticCloudPtr finalCloud, Sophus::SE3d &initTransform) {
+template <typename PointT>
+void GICP<PointT>::align(
+        PointCloudPtr finalCloud, Sophus::SE3d &initTransform) {
+
+    computeCovariances(sourceCloud_, sourceKdTree_, sourceCovariances_);
+    computeCovariances(targetCloud_, targetKdTree_, targetCovariances_);
+
     Sophus::SE3d currentTransform(initTransform);
     bool converged = false;
     size_t count = 0;
@@ -44,37 +49,32 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
                                   new LocalParameterizationSE3);
 
         double mseHigh = 0;
-        count++;
-        for(SemanticT s:sourceCloud_->semanticLabels) {
-            std::cout << "Label: " << s << std::endl;
-            if (targetCloud_->labeledPointClouds.find(s) != targetCloud_->labeledPointClouds.end()) {
-            if (sourceCloud_->labeledPointClouds[s]->size()>400) {
-            typename pcl::PointCloud<PointT>::Ptr transformedSource (new pcl::PointCloud<PointT>());
-            Sophus::SE3d transform = currentTransform;
-            Eigen::Matrix4d transMat = transform.matrix();
-            pcl::transformPointCloud(*(sourceCloud_->labeledPointClouds[s]),
+
+        typename pcl::PointCloud<PointT>::Ptr transformedSource (new pcl::PointCloud<PointT>());
+        Sophus::SE3d transform = currentTransform;
+        Eigen::Matrix4d transMat = transform.matrix();
+        pcl::transformPointCloud(*sourceCloud_,
                                     *transformedSource,
                                     transMat);
 
-            KdTreePtr tree = targetCloud_->labeledKdTrees[s];
-            std::vector<int> targetIndx;
-            std::vector<float> distSq;
+        std::vector<int> targetIndx;
+        std::vector<float> distSq;
 
 
-            std::cout << "Num Points: " << transformedSource->size() << std::endl;
-            for(int sourceIndx = 0; sourceIndx != transformedSource->size(); sourceIndx++) {
-                const PointT &transformedSourcePoint = transformedSource->points[sourceIndx];
+        std::cout << "Num Points: " << transformedSource->size() << std::endl;
+        for(int sourceIndx = 0; sourceIndx != transformedSource->size(); sourceIndx++) {
+            const PointT &transformedSourcePoint = transformedSource->points[sourceIndx];
 
-                tree->nearestKSearch(transformedSourcePoint, 1, targetIndx, distSq);
+            targetKdTree_->nearestKSearch(transformedSourcePoint, 1, targetIndx, distSq);
                 if( distSq[0] < 250 ) {
                     const PointT &sourcePoint =
-                        (sourceCloud_->labeledPointClouds[s])->points[sourceIndx];
+                        sourceCloud_->points[sourceIndx];
                     const Eigen::Matrix3d &sourceCov =
-                        (sourceCloud_->labeledCovariances[s])->at(sourceIndx);
+                        sourceCovariances_->at(sourceIndx);
                     const PointT &targetPoint =
-                        (targetCloud_->labeledPointClouds[s])->points[targetIndx[0]];
+                        targetCloud_->points[targetIndx[0]];
                     const Eigen::Matrix3d &targetCov =
-                        (targetCloud_->labeledCovariances[s])->at(targetIndx[0]);
+                        targetCovariances_->at(targetIndx[0]);
 
                     //   Autodif Cost function
                     //GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(sourcePoint,
@@ -127,11 +127,7 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
 
                 }
 
-            } // For loop over points
-            } // If (numpoints)
-            } // If semantic is in target
-
-        }
+        } // For loop over points
         // Sovler Options
         ceres::Solver::Options options;
         options.gradient_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
@@ -156,116 +152,84 @@ void SemanticIterativeClosestPoint<PointT,SemanticT>::align(
         std::cout<< estTransform.matrix() << std::endl;
         std::cout<< "Itteration: " << count << std::endl;
         currentTransform = estTransform;
+        count++;
     }
 
     finalTransformation_ = currentTransform;
 
     Sophus::SE3d trans = finalTransformation_*baseTransformation_;
     Eigen::Matrix4f mat = (trans.matrix()).cast<float>();
-    finalCloud->transform(mat);
+    if( finalCloud != nullptr ) {
+        pcl::transformPointCloud(*sourceCloud_,
+                                 *finalCloud,
+                                 mat);
+    }
 };
 
+template <typename PointT>
+void GICP<PointT>::computeCovariances(const PointCloudPtr cloudptr,
+                                      KdTreePtr treeptr, MatricesVectorPtr matvecptr) {
 
-template <typename PointT, typename SemanticT>
-Sophus::SE3d SemanticIterativeClosestPoint<PointT,SemanticT>::iterativeMean(
-        std::vector<Sophus::SE3d> const& in,
-        size_t maxIterations) {
-    size_t N = in.size();
+    // Variables for computing Covariances
+    Eigen::Vector3d mean;
+    std::vector<int> nn_idecies; nn_idecies.reserve (kCorrespondences_);
+    std::vector<float> nn_dist_sq; nn_dist_sq.reserve (kCorrespondences_);
 
-    Sophus::SE3d tAverage = in.front();
-    double w = double(1.0/N);
-    for(size_t i = 0; i< maxIterations; ++i) {
-        Sophus::SE3d::Tangent average;
-        average.setZero();
-        for(Sophus::SE3d const& transform: in) {
-            average += w*(tAverage.inverse() * transform).log();
+    // Set up Itteration
+    matvecptr->resize(cloudptr->size());
+
+    for(size_t itter = 0; itter < cloudptr->size(); itter++) {
+        const PointT &query_pt = (*cloudptr)[itter];
+
+        Eigen::Matrix3d cov;
+        cov.setZero();
+        mean.setZero();
+
+        treeptr->nearestKSearch(query_pt, kCorrespondences_, nn_idecies, nn_dist_sq);
+
+        for( int index: nn_idecies) {
+            const PointT &pt = (*cloudptr)[index];
+
+            mean[0] += pt.x;
+            mean[1] += pt.y;
+            mean[2] += pt.z;
+
+            cov(0,0) += pt.x*pt.x;
+
+            cov(1,0) += pt.y*pt.x;
+            cov(1,1) += pt.y*pt.y;
+
+            cov(2,0) += pt.z*pt.x;
+            cov(2,1) += pt.z*pt.y;
+            cov(2,2) += pt.z*pt.z;
         }
-        Sophus::SE3d newTAverage = tAverage*Sophus::SE3d::exp(average);
-        if((newTAverage.inverse()*tAverage).log().squaredNorm()<0.01)
-            return newTAverage;
 
-        tAverage = newTAverage;
-    }
-    std::cout << "Iterative Mean Failed";
-    return tAverage;
-};
+        mean /= static_cast<double> (kCorrespondences_);
+        for (int k = 0; k < 3; k++) {
+            for (int l =0; l <= k; l++) {
+                cov(k,l) /= static_cast<double> (kCorrespondences_);
+                cov(k,l) -= mean[k]*mean[l];
+                cov(l,k) = cov(k,l);
+            }
+        }
 
-struct PoseFusionCostFunctor {
-    PoseFusionCostFunctor(Sophus::SE3d pose,
-                          Eigen::Matrix<double,6,6> cov) :
-                          poseInv_(pose),
-                          covInv_(cov) {}
+        // SVD decomposition for PCA
+        Eigen::JacobiSVD<Eigen::Matrix3d> svd(cov, Eigen::ComputeFullU);
+        cov.setZero();
+        Eigen::Matrix3d U = svd.matrixU();
 
-    template <class T>
-    bool operator()(T const* const parameters, T* residuals) const {
-        Eigen::Map<Sophus::SE3<T> const> const testPose(parameters);
-
-        Eigen::Matrix<T,6,1> res = (testPose*poseInv_.cast<T>()).log();
-        residuals[0] = T(res.transpose()*covInv_.cast<T>()*res);
-        return true;
-    }
-
-    Sophus::SE3d poseInv_;
-    Eigen::Matrix<double,6,6> covInv_;
-};
-
-template <typename PointT, typename SemanticT>
-Sophus::SE3d SemanticIterativeClosestPoint<PointT, SemanticT>::poseFusion(
-        std::vector<Sophus::SE3d> const& poses,
-        CovarianceVector const& covs,
-        Sophus::SE3d const &initTransform) {
-
-    for(size_t n =0; n<poses.size(); n++) {
-        std::cout << poses[n].matrix() << std::endl;
-        std::cout << covs[n] << std::endl;
+        for (int k = 0; k<3; k++) {
+            Eigen::Vector3d col = U.col(k);
+            double v = 1.;
+            if (k == 2)
+                v = epsilon_;
+            cov+= v*col*col.transpose();
+        }
+        (*matvecptr)[itter] = cov;
     }
 
-    if(poses.size() == 1)
-        return poses[0];
-
-    ceres::Problem problem;
-
-    Sophus::SE3d fusedPose(initTransform);
-    problem.AddParameterBlock(fusedPose.data(), Sophus::SE3d::num_parameters,
-                              new LocalParameterizationSE3);
-
-    double det = 0;
-    for(auto m:covs) {
-        det+=m.determinant()/double(covs.size());
-    }
-    double scale = pow(1.0/det, 1.0/6.0);
-    scale = 1.0/scale;
-
-    for(size_t n =0; n<poses.size(); n++) {
-        //std::cout << poses[n].matrix() << std::endl;
-        //std::cout << covs[n] << std::endl;
-        PoseFusionCostFunctor *c = new PoseFusionCostFunctor(poses[n].inverse(),
-                                                             covs[n].inverse()*scale);
-
-        ceres::CostFunction *costFunction =
-            new ceres::AutoDiffCostFunction<PoseFusionCostFunctor,
-                                            1,
-                                            Sophus::SE3d::num_parameters> (c);
-        problem.AddResidualBlock(costFunction, new ceres::HuberLoss(10.0), fusedPose.data());
-    }
-
-    ceres::Solver::Options options;
-    options.linear_solver_type = ceres::DENSE_QR;
-    options.num_threads = 4;
-    options.max_num_iterations = 50000;
-    options.gradient_tolerance = 0.0001 * Sophus::Constants<double>::epsilon();
-    options.function_tolerance = 0.0001 * Sophus::Constants<double>::epsilon();
-
-    ceres::Solver::Summary summary;
-    ceres::Solve(options, &problem, &summary);
-    std::cout << "Pose Fusion\n";
-    std::cout << summary.BriefReport() << std::endl;
-
-    return fusedPose;
-};
-
-
+}
 
 } // namespace semanticicp
 
-#endif //SEMANTIC_ICP_HPP_
+#endif //GICP_HPP_
