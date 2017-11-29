@@ -11,6 +11,7 @@
 
 #include <semantic_point_cloud.h>
 #include <semantic_icp.h>
+#include <gicp.h>
 #include <semantic_viewer.h>
 #include <pcl_2_semantic.h>
 
@@ -74,60 +75,32 @@ main (int argc, char** argv)
     semanticB->removeSemanticClass( 11 );
 
     semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
-    sicp.setInputSource(semanticA);
-    sicp.setInputTarget(semanticB);
 
     auto begin = std::chrono::steady_clock::now();
+    sicp.setInputSource(semanticA);
+    sicp.setInputTarget(semanticB);
     sicp.align(semanticAfinal);
     auto end = std::chrono::steady_clock::now();
     std::cout << "Time Multiclass: "
               << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
 
-    for(size_t t = 0; t< cloudA->points.size(); t++){
-        pcl::PointXYZL p = cloudA->points[t];
-        p.label=0;
-        cloudA->points[t] = p;
-    }
-    std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
-        semanticAnoL (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
-
-    std::cout << "LabelsA: " << std::endl;
-    semanticicp::pcl_2_semantic(cloudA, semanticAnoL);
-
-    for(uint32_t l: semanticAnoL->semanticLabels) {
-        std::cout << l << " Num Points: " <<semanticAnoL->labeledPointClouds[l]->points.size()
-                  <<std::endl;
-    }
-
-    for(size_t t = 0; t< cloudB->points.size(); t++){
-        pcl::PointXYZL p = cloudB->points[t];
-        p.label=0;
-        cloudB->points[t] = p;
-    }
-    std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
-        semanticBnoL (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
-
-    semanticicp::pcl_2_semantic(cloudB, semanticBnoL);
-    std::cout << "LabelsB: " << std::endl;
-    for(uint32_t l: semanticBnoL->semanticLabels) {
-        std::cout << l << " Num Points: " <<semanticBnoL->labeledPointClouds[l]->points.size()
-                  <<std::endl;
-    }
-
-    semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp2;
-    sicp2.setInputSource(semanticAnoL);
-    sicp2.setInputTarget(semanticBnoL);
-
-    begin = std::chrono::steady_clock::now();
-    sicp2.align(semanticAnoL);
-    end = std::chrono::steady_clock::now();
-    std::cout << "Time Single Class: "
-              << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudAnoL (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::io::loadPCDFile<pcl::PointXYZ> (strSource, *cloudAnoL);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudBnoL (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::io::loadPCDFile<pcl::PointXYZ> (strTarget, *cloudBnoL);
+
+
+    semanticicp::GICP<pcl::PointXYZ> gicpse3;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr finalCloudse3( new pcl::PointCloud<pcl::PointXYZ> );
+
+    begin = std::chrono::steady_clock::now();
+    gicpse3.setSourceCloud(cloudAnoL);
+    gicpse3.setTargetCloud(cloudBnoL);
+    gicpse3.align(finalCloudse3);
+    end = std::chrono::steady_clock::now();
+    std::cout << "Time Single Class: "
+              << std::chrono::duration_cast<std::chrono::seconds>(end-begin).count() << std::endl;
 
     pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
     gicp.setInputCloud(cloudA);
