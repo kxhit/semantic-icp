@@ -11,9 +11,10 @@
 #include <pcl/registration/gicp.h>
 #include <pcl/console/parse.h>
 
-#include <semantic_point_cloud.h>
-#include <semantic_icp.h>
+#include <em_icp.h>
+#include <gicp.h>
 #include <pcl_2_semantic.h>
+#include "read_confusion_matrix.h"
 #include "kitti_metrics.h"
 #include "bootstrap.h"
 #include "filter_range.h"
@@ -50,6 +51,7 @@ main (int argc, char** argv)
 {
     std::string strDirectory;
     std::string strGTFile;
+    std::string strCMFile;
     if ( !pcl::console::parse_argument(argc, argv, "-s", strDirectory) ) {
         std::cout << "Need source directory (-s)\n";
         return (-1);
@@ -58,6 +60,12 @@ main (int argc, char** argv)
         std::cout << "Need ground truth file (-t)\n";
         return (-1);
     }
+    if ( !pcl::console::parse_argument(argc, argv, "-m", strCMFile) ) {
+        std::cout << "Need ground confusion matrix file (-m)\n";
+        return (-1);
+    }
+    Eigen::Matrix<double, 11, 11> cm = ReadConfusionMatrix<11>(strCMFile);
+    std::cout << "Confusion Matrix:\n" << cm << std::endl;
 
     std::vector<std::string> pcd_fns = get_pcd_in_dir(strDirectory);
     std::sort(pcd_fns.begin(),pcd_fns.end());
@@ -90,7 +98,7 @@ main (int argc, char** argv)
   */  
 
     std::ofstream foutSICP;
-    foutSICP.open(dateStr+"SICPkitti.csv");
+    foutSICP.open(dateStr+"EMICPkitti.csv");
 
     std::ofstream foutGICP;
     foutGICP.open(dateStr+"GICPkitti.csv");
@@ -106,7 +114,7 @@ main (int argc, char** argv)
     KittiMetrics GICPMetrics(strGTFile, &foutGICP);
     KittiMetrics bootstrapMetrics(strGTFile, &foutBootstrap);
 
-    for(size_t n = 0; n<(pcd_fns.size()-3); n+=3) {
+    for(size_t n = 1455; n<(pcd_fns.size()-3); n+=3) {
         std::cout << "Cloud# " << n << std::endl;
         size_t indxTarget = n;
         size_t indxSource = indxTarget + 3;
@@ -122,6 +130,7 @@ main (int argc, char** argv)
 
         filterRange(cloudA, 40.0);
 
+        /*
         std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
             semanticA (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
 
@@ -130,6 +139,7 @@ main (int argc, char** argv)
         semanticA->removeSemanticClass( 10 );
         semanticA->removeSemanticClass( 11 );
         //cloudA = semanticA->getpclPointCloud();
+        */
 
         pcl::PointCloud<pcl::PointXYZL>::Ptr cloudB (new pcl::PointCloud<pcl::PointXYZL>);
 
@@ -141,6 +151,7 @@ main (int argc, char** argv)
 
         filterRange(cloudB, 40.0);
 
+        /*
         std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
             semanticB (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
 
@@ -149,6 +160,7 @@ main (int argc, char** argv)
         semanticB->removeSemanticClass( 10 );
         semanticB->removeSemanticClass( 11 );
         //cloudB = semanticB->getpclPointCloud();
+        */
 
         auto begin = std::chrono::steady_clock::now();
         //Sophus::SE3d initTransform = semanticICPMetrics.getGTtransfrom(n, n+3);
@@ -162,64 +174,53 @@ main (int argc, char** argv)
                   << bootstrapMetrics.evaluate(initTransform, indxTarget, indxSource, timeInit)
                   << std::endl;
 
-        semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp;
-        sicp.setInputSource(semanticA);
-        sicp.setInputTarget(semanticB);
+        semanticicp::EmIterativeClosestPoint<11> emicp;
+        pcl::PointCloud<pcl::PointXYZL>::Ptr
+          finalCloudem( new pcl::PointCloud<pcl::PointXYZL> );
 
         begin = std::chrono::steady_clock::now();
-        sicp.align(semanticA, initTransform);
+        emicp.setSourceCloud(cloudA);
+        emicp.setTargetCloud(cloudB);
+        emicp.setConfusionMatrix(cm);
+        emicp.align(finalCloudem, initTransform);
         end = std::chrono::steady_clock::now();
         int timeSICP = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
         std::cout << "Time Multiclass: "
                 << timeSICP << std::endl;
-        Sophus::SE3d sicpTranform = sicp.getFinalTransFormation();
+        Sophus::SE3d sicpTranform = emicp.getFinalTransFormation();
         std::cout << "SICP MSE: "
                   << semanticICPMetrics.evaluate(sicpTranform, indxTarget, indxSource, timeSICP)
                   << std::endl;
 
-        for(size_t t = 0; t< cloudA->points.size(); t++){
-            pcl::PointXYZL p = cloudA->points[t];
-            p.label=0;
-            cloudA->points[t] = p;
-        }
-        std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
-            semanticAnoL (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
-
-        semanticicp::pcl_2_semantic(cloudA, semanticAnoL);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudAnoL (new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::io::loadPCDFile<pcl::PointXYZ> (strSource, *cloudAnoL);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudBnoL (new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::io::loadPCDFile<pcl::PointXYZ> (strTarget, *cloudBnoL);
 
 
-        for(size_t t = 0; t< cloudB->points.size(); t++){
-            pcl::PointXYZL p = cloudB->points[t];
-            p.label=0;
-            cloudB->points[t] = p;
-        }
-        std::shared_ptr<semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t>>
-            semanticBnoL (new semanticicp::SemanticPointCloud<pcl::PointXYZ, uint32_t> ());
-
-        semanticicp::pcl_2_semantic(cloudB, semanticBnoL);
-
-        semanticicp::SemanticIterativeClosestPoint<pcl::PointXYZ, uint32_t> sicp2;
-        sicp2.setInputSource(semanticAnoL);
-        sicp2.setInputTarget(semanticBnoL);
+        semanticicp::GICP<pcl::PointXYZ> gicpse3;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr finalCloudse3( new pcl::PointCloud<pcl::PointXYZ> );
 
         begin = std::chrono::steady_clock::now();
-        sicp2.align(semanticAnoL, initTransform);
+        gicpse3.setSourceCloud(cloudAnoL);
+        gicpse3.setTargetCloud(cloudBnoL);
+        gicpse3.align(finalCloudse3);
         end = std::chrono::steady_clock::now();
         int timese3GICP = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
         std::cout << "Time Single Class: "
                   << timese3GICP << std::endl;
-        Sophus::SE3d gicpTransform = sicp2.getFinalTransFormation();
+        Sophus::SE3d gicpTransform = gicpse3.getFinalTransFormation();
         std::cout << "se3GICP MSE: "
                   << se3GICPMetrics.evaluate(gicpTransform, indxTarget, indxSource, timese3GICP)
                   << std::endl;
 
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
-        gicp.setInputCloud(cloudA);
-        gicp.setInputTarget(cloudB);
-        gicp.setMaxCorrespondenceDistance(1.5);
         pcl::PointCloud<pcl::PointXYZL> final1;
 
         begin = std::chrono::steady_clock::now();
+        gicp.setInputCloud(cloudA);
+        gicp.setInputTarget(cloudB);
+        gicp.setMaxCorrespondenceDistance(1.5);
         gicp.align(final1, (initTransform.matrix()).cast<float>());
         end = std::chrono::steady_clock::now();
         int timeGICP = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
