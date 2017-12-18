@@ -10,7 +10,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/kdtree/kdtree_flann.h>
 
-//#include <gicp_cost_functor_autodiff.h>
+#include <gicp_cost_functor_autodiff.h>
 #include <gicp_cost_function.h>
 #include <local_parameterization_se3.h>
 
@@ -80,11 +80,11 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
                         dist(target_pt.label-1, 0);
 
           //   Autodif Cost function
-          //GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(sourcePoint,
-          //                                                       targetPoint,
-          //                                                       sourceCov,
-          //                                                       targetCov,
-          //                                                       baseTransformation_);
+          //GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(s_pt,
+          //                                                       t_pt,
+          //                                                       source_cov,
+          //                                                       target_cov,
+          //                                                       base_transformation_);
           //ceres::CostFunction* cost_function =
           //    new ceres::AutoDiffCostFunction<GICPCostFunctorAutoDiff,
           //                                    1,

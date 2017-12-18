@@ -54,7 +54,7 @@ struct GICPCostFunctorAutoDiff {
   Eigen::Matrix3d cov_source_;
   Eigen::Matrix3d cov_target_;
   Sophus::SE3<double> base_transform_;
-}
+};
 
 }  // namespace semanticicp
 

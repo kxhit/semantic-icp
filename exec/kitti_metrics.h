@@ -21,7 +21,7 @@ class KittiMetrics
                     data[n] = std::stod((*loop)[n]);
                 }
                 mat.block<3,4> (0,0) = Eigen::Map<Eigen::Matrix<double,3,4,Eigen::RowMajor> > (data);
-                Sophus::SE3d trans(mat);
+                Sophus::SE3d trans = Sophus::SE3d::fitToSE3(mat);
                 gtPoses_.push_back(trans);
             }
             out_ = out;

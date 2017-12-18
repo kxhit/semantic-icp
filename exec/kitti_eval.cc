@@ -229,7 +229,7 @@ main (int argc, char** argv)
         Eigen::Matrix4f mat = gicp.getFinalTransformation();
         std::cout << "Final GICP Transform\n";
         std::cout << mat << std::endl;
-        Sophus::SE3d gicpTransform2(mat.cast<double>());
+        Sophus::SE3d gicpTransform2 = Sophus::SE3d::fitToSE3(mat.cast<double>());
         std::cout << "GICP MSE: "
                   << GICPMetrics.evaluate(gicpTransform2, indxTarget, indxSource, timeGICP)
                   << std::endl;
