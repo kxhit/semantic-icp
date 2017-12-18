@@ -27,11 +27,11 @@ namespace semanticicp {
         virtual bool Evaluate (double const* const* parameters,
                                double* residuals,
                                double** jacobians) const {
-            Eigen::Map<Sophus::SE3<double> const> const transform_(parameters[0]);
-            Eigen::Matrix3d R = transform_.rotationMatrix();
+            Eigen::Map<Sophus::SE3<double> const> const kTransform(parameters[0]);
+            Eigen::Matrix3d R = kTransform.rotationMatrix();
             Eigen::Matrix3d M = (cov_target_+R*cov_source_*R.transpose()).inverse();
 
-            Eigen::Vector3d transformed_point_source_ = transform_*point_source_;
+            Eigen::Vector3d transformed_point_source_ = kTransform*point_source_;
             Eigen::Vector3d res = point_target_-transformed_point_source_;
             Eigen::Vector3d dT = M*res;
             residuals[0] = double(res.transpose() * dT);
@@ -43,7 +43,7 @@ namespace semanticicp {
                 // http://www.matrixcalculus.org/
                 Eigen::Matrix3d dR;
                 Eigen::Matrix3d Ta = (cov_target_.transpose()
-                                      +R*cov_source_.transpose().transpose()*R).inverse();
+                                      +R*cov_source_.transpose()*R.transpose()).inverse();
                 Eigen::Vector3d tb = M*res;
                 Eigen::Vector3d tc = Ta*res;
 
@@ -60,7 +60,7 @@ namespace semanticicp {
                 //     *(res.transpose()*M)+M.transpose()*res*point_source_.transpose());
 
                 dT *= -2.0;
-                Eigen::Quaterniond dq = dRtodq(dR, transform_.unit_quaternion(), R);
+                Eigen::Quaterniond dq = dRtodq(dR, kTransform.unit_quaternion(), R);
                 jacobian[4] = dT(0);
                 jacobian[5] = dT(1);
                 jacobian[6] = dT(2);
@@ -83,7 +83,7 @@ namespace semanticicp {
         // Used in Chain Rule
         inline
         Eigen::Quaterniond dRtodq(const Eigen::Matrix3d dR, const Eigen::Quaterniond q, const Eigen::Matrix3d R)  const {
-            Eigen::Quaterniond out, unNormed;
+            Eigen::Quaterniond out;
             const double tx  = double(2)*q.x();
             const double ty  = double(2)*q.y();
             const double tz  = double(2)*q.z();
@@ -92,8 +92,6 @@ namespace semanticicp {
             const double mfy  = double(-2)*ty;
             const double mfz  = double(-2)*tz;
             const double mtw  = double(-1)*tw;
-            const double sqn = q.squaredNorm();
-            const double n = pow(q.norm(),3);
 
             /* Eigen Quat to Rot
             res.coeffRef(0,0) = Scalar(1)-(tyy+tzz);
@@ -119,7 +117,7 @@ namespace semanticicp {
             dRdw(2,1) = tx;
             dRdw(2,2) = double(0);
 
-            unNormed.w() = (dR.transpose()*dRdw).trace();
+            out.w() = (dR.transpose()*dRdw).trace();
 
             Eigen::Matrix3d dRdx;
             dRdx(0,0) = double(0);
@@ -132,7 +130,7 @@ namespace semanticicp {
             dRdx(2,1) = tw;
             dRdx(2,2) = mfx;
 
-            unNormed.x() = (dR.transpose()*dRdx).trace();
+            out.x() = (dR.transpose()*dRdx).trace();
 
             Eigen::Matrix3d dRdy;
             dRdy(0,0) = mfy;
@@ -145,7 +143,7 @@ namespace semanticicp {
             dRdy(2,1) = tz;
             dRdy(2,2) = mfy;
 
-            unNormed.y() = (dR.transpose()*dRdy).trace();
+            out.y() = (dR.transpose()*dRdy).trace();
 
             Eigen::Matrix3d dRdz;
             dRdz(0,0) = mfz;
@@ -158,26 +156,7 @@ namespace semanticicp {
             dRdz(2,1) = ty;
             dRdz(2,2) = double(0);
 
-            unNormed.z() = (dR.transpose()*dRdz).trace();
-
-
-            // Chain rule for quaternion normalization
-            out.x() = unNormed.x()*(sqn-pow(q.x(),2))/n -
-                      unNormed.y()*(q.y()*q.x()/n) -
-                      unNormed.z()*(q.z()*q.x()/n) -
-                      unNormed.w()*(q.w()*q.x()/n);
-            out.y() = unNormed.y()*(sqn-pow(q.y(),2))/n -
-                      unNormed.x()*(q.x()*q.y()/n) -
-                      unNormed.z()*(q.z()*q.y()/n) -
-                      unNormed.w()*(q.w()*q.y()/n);
-            out.z() = unNormed.z()*(sqn-pow(q.z(),2))/n -
-                      unNormed.x()*(q.x()*q.z()/n) -
-                      unNormed.y()*(q.y()*q.z()/n) -
-                      unNormed.w()*(q.w()*q.z()/n);
-            out.w() = unNormed.w()*(sqn-pow(q.w(),2))/n -
-                      unNormed.x()*(q.x()*q.w()/n) -
-                      unNormed.y()*(q.y()*q.w()/n) -
-                      unNormed.z()*(q.z()*q.w()/n);
+            out.z() = (dR.transpose()*dRdz).trace();
 
             return out;
         }
