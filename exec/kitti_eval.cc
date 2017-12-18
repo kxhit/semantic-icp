@@ -114,7 +114,7 @@ main (int argc, char** argv)
     KittiMetrics GICPMetrics(strGTFile, &foutGICP);
     KittiMetrics bootstrapMetrics(strGTFile, &foutBootstrap);
 
-    for(size_t n = 1455; n<(pcd_fns.size()-3); n+=3) {
+    for(size_t n = 0; n<(pcd_fns.size()-3); n+=3) {
         std::cout << "Cloud# " << n << std::endl;
         size_t indxTarget = n;
         size_t indxSource = indxTarget + 3;
