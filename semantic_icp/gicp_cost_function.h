@@ -72,6 +72,20 @@ namespace semanticicp {
             return true;
         };
 
+        bool Probability( const Sophus::SE3d transform) {
+            Eigen::Matrix3d R = transform.rotationMatrix();
+            Eigen::Matrix3d cov = (cov_target_+R*cov_source_*R.transpose());
+            Eigen::Matrix3d M = cov.inverse();
+
+            Eigen::Vector3d transformed_point_source_ = transform*point_source_;
+            Eigen::Vector3d res = point_target_-transformed_point_source_;
+            Eigen::Vector3d dT = M*res;
+            double malhalanobis= -1.0/2.0*double(res.transpose() * dT);
+
+            double probability = (2*M_PI*cov).determinant()*exp(malhalanobis);
+            return probability;
+        };
+
         private:
         Eigen::Vector3d point_source_;
         Eigen::Vector3d point_target_;

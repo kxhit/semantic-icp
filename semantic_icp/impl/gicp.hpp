@@ -93,7 +93,7 @@ void GICP<PointT>::align(
                                                                            sourceCov,
                                                                            targetCov,
                                                                            baseTransformation_);
-                    problem.AddResidualBlock(cost_function, new ceres::CauchyLoss(1.5),
+                    problem.AddResidualBlock(cost_function, NULL,
                                              estTransform.data());
 
                     // Gradient Check
@@ -145,7 +145,7 @@ void GICP<PointT>::align(
         std::cout << summary.FullReport() << std::endl;
 
         double mse = (currentTransform.inverse()*estTransform).log().squaredNorm();
-        if(mse < 0.001 || count>35)
+        if(mse < 1e-5 || count>50)
             converged = true;
         std::cout<< "MSE: " << mse << std::endl;
         std::cout<< "Transform: " << std::endl;
