@@ -66,7 +66,7 @@ void GICP<PointT>::align(
             const PointT &transformedSourcePoint = transformedSource->points[sourceIndx];
 
             targetKdTree_->nearestKSearch(transformedSourcePoint, 1, targetIndx, distSq);
-                if( distSq[0] < 250 ) {
+                if( distSq[0] < 4 ) {
                     const PointT &sourcePoint =
                         sourceCloud_->points[sourceIndx];
                     const Eigen::Matrix3d &sourceCov =

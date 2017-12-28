@@ -82,7 +82,7 @@ namespace semanticicp {
             Eigen::Vector3d dT = M*res;
             double malhalanobis= -1.0/2.0*double(res.transpose() * dT);
 
-            double probability = (2*M_PI*cov).determinant()*exp(malhalanobis);
+            double probability = pow((2*M_PI*cov).determinant(), -1.0/2.0)*exp(malhalanobis);
             return probability;
         };
 
