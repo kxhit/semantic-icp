@@ -82,6 +82,11 @@ class EmIterativeClosestPoint {
     return temp;
   }
 
+  int
+  getOuterIter() {
+      return outer_iter;
+  }
+
  protected:
   int kNumClasses_;
   int kCorrespondences_;
@@ -89,6 +94,8 @@ class EmIterativeClosestPoint {
   double kTranslationEpsilon_;
   double kRotationEpsilon_;
   int kMaxInnerIterations_;
+
+  int outer_iter;
 
   Sophus::SE3d base_transformation_;
   Sophus::SE3d final_transformation_;

@@ -68,6 +68,10 @@ namespace semanticicp
             return temp;
         };
 
+        int
+        getOuterIter(){
+            return outer_iter;
+        }
 
         protected:
 
@@ -76,6 +80,8 @@ namespace semanticicp
         double translationEpsilon_;
         double rotationEpsilon_;
         int maxInnerIterations_;
+
+        int outer_iter;
 
         Sophus::SE3d baseTransformation_;
         Sophus::SE3d finalTransformation_;

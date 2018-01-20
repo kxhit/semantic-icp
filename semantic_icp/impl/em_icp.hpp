@@ -56,10 +56,10 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
     for(int source_index = 0; source_index != transformed_source->size(); source_index++) {
       const PointT &transformed_source_pt = transformed_source->points[source_index];
 
-      target_kd_tree_->nearestKSearch(transformed_source_pt, 1,
+      target_kd_tree_->nearestKSearch(transformed_source_pt, 4,
                                       target_index, dist_sq);
       for(int correspondence_index = 0;
-          correspondence_index < 1;
+          correspondence_index < 4;
           correspondence_index++) {
         if( dist_sq[correspondence_index] < 250 ) {
           const PointT &source_pt =
@@ -73,11 +73,19 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
           const Eigen::Matrix3d &target_cov =
             target_covariances_->at(target_index[correspondence_index]);
 
-          const Eigen::Matrix<double,N, 1> dist =
+          const Eigen::Matrix<double,N, 1> target_dist =
             target_distributions_->at(target_index[correspondence_index]);
+          const Eigen::Matrix<double,N, 1> source_dist =
+            source_distributions_->at(source_index);
 
-          double prob = confusion_matrix_(source_pt.label-1, target_pt.label-1)*
-                        dist(target_pt.label-1, 0);
+          //double prob = confusion_matrix_(source_pt.label-1, target_pt.label-1)*
+          //              dist(target_pt.label-1, 0);
+          double prob =0;
+          for(size_t s = 0; s<N; s++){
+            double temp = target_dist.transpose()*confusion_matrix_.col(s);
+            temp *= source_dist.transpose()*confusion_matrix_.col(s);
+            prob += temp;
+          }
 
           //   Autodif Cost function
           //GICPCostFunctorAutoDiff *c= new GICPCostFunctorAutoDiff(s_pt,
@@ -98,7 +106,7 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
                                                                     base_transformation_);
           prob *=cost_function->Probability( est_transform);
           problem.AddResidualBlock(cost_function,
-                                   new ceres::ScaledLoss(NULL,
+                                   new ceres::ScaledLoss(new ceres::CauchyLoss(1.5),
                                                          prob,
                                                          ceres::TAKE_OWNERSHIP),
                                    est_transform.data());
@@ -138,7 +146,8 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
     options.gradient_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
     options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
     options.linear_solver_type = ceres::DENSE_QR;
-    options.num_threads = 4;
+    options.num_threads = 8;
+    options.num_linear_solver_threads = 8;
     options.max_num_iterations = 400;
    // options.check_gradients = true;
     options.gradient_check_numeric_derivative_relative_step_size = 1e-8;
@@ -150,7 +159,7 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
     std::cout << summary.FullReport() << std::endl;
 
     double mse = (current_transform.inverse()*est_transform).log().squaredNorm();
-    if(mse < 1e-5 || outter_itter>50)
+    if(mse < 1e-3 || outter_itter>50)
         converged = true;
     std::cout<< "MSE: " << mse << std::endl;
     std::cout<< "Transform: " << std::endl;
@@ -169,6 +178,7 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
                                *final_cloud,
                                mat);
   }
+  outer_iter=outter_itter;
 
 }
 

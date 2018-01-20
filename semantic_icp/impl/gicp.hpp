@@ -66,7 +66,7 @@ void GICP<PointT>::align(
             const PointT &transformedSourcePoint = transformedSource->points[sourceIndx];
 
             targetKdTree_->nearestKSearch(transformedSourcePoint, 1, targetIndx, distSq);
-                if( distSq[0] < 4 ) {
+                if( distSq[0] < 250 ) {
                     const PointT &sourcePoint =
                         sourceCloud_->points[sourceIndx];
                     const Eigen::Matrix3d &sourceCov =
@@ -88,14 +88,15 @@ void GICP<PointT>::align(
                     //                                    Sophus::SE3d::num_parameters>(c);
 
                     //   Analytical Cost Function
-                    ceres::CostFunction* cost_function = new GICPCostFunction(sourcePoint,
+                    GICPCostFunction* cost_function = new GICPCostFunction(sourcePoint,
                                                                            targetPoint,
                                                                            sourceCov,
                                                                            targetCov,
                                                                            baseTransformation_);
-                    problem.AddResidualBlock(cost_function, NULL,
-                                             estTransform.data());
 
+                    problem.AddResidualBlock(cost_function,
+                                             new ceres::CauchyLoss(1.5),
+                                             estTransform.data());
                     // Gradient Check
                     if (false) {
                         ceres::NumericDiffOptions numeric_diff_options;
@@ -145,7 +146,7 @@ void GICP<PointT>::align(
         std::cout << summary.FullReport() << std::endl;
 
         double mse = (currentTransform.inverse()*estTransform).log().squaredNorm();
-        if(mse < 1e-5 || count>50)
+        if(mse < 1e-3 || count>50)
             converged = true;
         std::cout<< "MSE: " << mse << std::endl;
         std::cout<< "Transform: " << std::endl;
@@ -164,6 +165,8 @@ void GICP<PointT>::align(
                                  *finalCloud,
                                  mat);
     }
+
+    outer_iter = count;
 };
 
 template <typename PointT>

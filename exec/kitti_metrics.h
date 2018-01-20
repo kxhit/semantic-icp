@@ -29,7 +29,7 @@ class KittiMetrics
         };
 
         double
-        evaluate(const Sophus::SE3d& transform, size_t poseIDA, size_t poseIDB, int timeSeconds) {
+        evaluate(const Sophus::SE3d& transform, size_t poseIDA, size_t poseIDB, int timeSeconds, int outter_iter) {
             Sophus::SE3d transformGT = getGTtransfrom(poseIDA, poseIDB);
             Sophus::SE3d transformDiff = transformGT*transform.inverse();
             double transformError = transformDiff.log().squaredNorm();
@@ -57,6 +57,7 @@ class KittiMetrics
             for( size_t i = 0, size = temp.size(); i<size; i++) {
                 *out_ << ", " << *(temp.data()+i);
             };
+            *out_ << ", " << outter_iter;
             *out_ << std::endl;
             std::cout << "Pose A\n";
             std::cout << gtPoses_[poseIDA].matrix();

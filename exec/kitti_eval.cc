@@ -171,7 +171,7 @@ main (int argc, char** argv)
         auto end = std::chrono::steady_clock::now();
         int timeInit = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
         std::cout << "Init MSE "
-                  << bootstrapMetrics.evaluate(initTransform, indxTarget, indxSource, timeInit)
+                  << bootstrapMetrics.evaluate(initTransform, indxTarget, indxSource, timeInit, 0)
                   << std::endl;
 
         semanticicp::EmIterativeClosestPoint<11> emicp;
@@ -189,7 +189,8 @@ main (int argc, char** argv)
                 << timeSICP << std::endl;
         Sophus::SE3d sicpTranform = emicp.getFinalTransFormation();
         std::cout << "SICP MSE: "
-                  << semanticICPMetrics.evaluate(sicpTranform, indxTarget, indxSource, timeSICP)
+                  << semanticICPMetrics.evaluate(sicpTranform, indxTarget,
+                          indxSource, timeSICP, emicp.getOuterIter())
                   << std::endl;
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloudAnoL (new pcl::PointCloud<pcl::PointXYZ>);
@@ -211,7 +212,8 @@ main (int argc, char** argv)
                   << timese3GICP << std::endl;
         Sophus::SE3d gicpTransform = gicpse3.getFinalTransFormation();
         std::cout << "se3GICP MSE: "
-                  << se3GICPMetrics.evaluate(gicpTransform, indxTarget, indxSource, timese3GICP)
+                  << se3GICPMetrics.evaluate(gicpTransform, indxTarget,
+                          indxSource, timese3GICP, gicpse3.getOuterIter())
                   << std::endl;
 
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
@@ -221,6 +223,7 @@ main (int argc, char** argv)
         gicp.setInputCloud(cloudA);
         gicp.setInputTarget(cloudB);
         gicp.setMaxCorrespondenceDistance(1.5);
+        gicp.setMaximumIterations(50);
         gicp.align(final1, (initTransform.matrix()).cast<float>());
         end = std::chrono::steady_clock::now();
         int timeGICP = std::chrono::duration_cast<std::chrono::seconds>(end-begin).count();
@@ -231,7 +234,7 @@ main (int argc, char** argv)
         std::cout << mat << std::endl;
         Sophus::SE3d gicpTransform2 = Sophus::SE3d::fitToSE3(mat.cast<double>());
         std::cout << "GICP MSE: "
-                  << GICPMetrics.evaluate(gicpTransform2, indxTarget, indxSource, timeGICP)
+                  << GICPMetrics.evaluate(gicpTransform2, indxTarget, indxSource, timeGICP, 1)
                   << std::endl;
 
     }
