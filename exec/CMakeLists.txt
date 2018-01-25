@@ -18,6 +18,9 @@ target_link_libraries (test_gradient semantic_icp_lib ${PCL_LIBRARIES} ${CERES_L
 add_executable (kitti_eval kitti_eval.cc ${HEADER_FILES})
 target_link_libraries (kitti_eval semantic_icp_lib ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
+add_executable (scenenet_eval scenenet_eval.cc ${HEADER_FILES})
+target_link_libraries (scenenet_eval semantic_icp_lib ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
 add_executable (roc_eval roc_eval.cc ${HEADER_FILES})
 target_link_libraries (roc_eval semantic_icp_lib ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 

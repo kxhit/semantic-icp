@@ -1,4 +1,5 @@
 #include <iostream>
+#include <random>
 #include <chrono>
 #include <thread>
 #include <cmath>
@@ -48,38 +49,43 @@ main (int argc, char** argv)
                  0.460412,  0.349471, -0.121288,
                  0.085842, -0.121288,  0.977386;
 
-    Sophus::SE3d estTransform, baseTransformation_;
-    estTransform = Sophus::SE3d::rotY(0.35)*Sophus::SE3d::rotX(0.1)*Sophus::SE3d::rotZ(0.2);
+    std::default_random_engine engine;
 
-    ceres::CostFunction* cost_function = new semanticicp::GICPCostFunction(sourcePoint,
-                                                                           targetPoint,
-                                                                           sourceCov,
-                                                                           targetCov,
-                                                                           baseTransformation_);
-    ceres::NumericDiffOptions numeric_diff_options;
-    //numeric_diff_options.relative_step_size = 1e-13;
+    for(int i = 0; i<10; i++) {
 
-    std::vector<const ceres::LocalParameterization*> lp;
-    lp.push_back(new semanticicp::LocalParameterizationSE3);
+      Sophus::SE3d estTransform, baseTransformation_;
+      estTransform = Sophus::SE3d::sampleUniform(engine);
 
-    ceres::GradientChecker gradient_checker(cost_function,
-                                    &lp,
-                                    numeric_diff_options);
+      ceres::CostFunction* cost_function = new semanticicp::GICPCostFunction(sourcePoint,
+                                                                             targetPoint,
+                                                                             sourceCov,
+                                                                             targetCov,
+                                                                             baseTransformation_);
+      ceres::NumericDiffOptions numeric_diff_options;
+      //numeric_diff_options.relative_step_size = 1e-13;
 
-    ceres::GradientChecker::ProbeResults results;
-    std::vector<double *> params;
-    params.push_back(estTransform.data());
-    if (!gradient_checker.Probe(params.data(), 5e-16, &results)) {
-           std::cout << "An error has occurred:\n";
-            std::cout << results.error_log;
-            std::cout << results.jacobians[0] << std::endl;
-            std::cout << results.numeric_jacobians[0] << std::endl;
-            std::cout << estTransform.matrix() << std::endl;
-            std::cout << sourcePoint << std::endl;
-            std::cout << targetPoint << std::endl;
-            std::cout << sourceCov << std::endl;
-            std::cout << targetCov << std::endl;
+      std::vector<const ceres::LocalParameterization*> lp;
+      lp.push_back(new semanticicp::LocalParameterizationSE3);
 
+      ceres::GradientChecker gradient_checker(cost_function,
+                                      &lp,
+                                      numeric_diff_options);
+
+      ceres::GradientChecker::ProbeResults results;
+      std::vector<double *> params;
+      params.push_back(estTransform.data());
+      if (!gradient_checker.Probe(params.data(), 5e-16, &results)) {
+             std::cout << "An error has occurred:\n";
+              std::cout << results.error_log;
+              std::cout << results.jacobians[0] << std::endl;
+              std::cout << results.numeric_jacobians[0] << std::endl;
+              std::cout << estTransform.matrix() << std::endl;
+              std::cout << sourcePoint << std::endl;
+              std::cout << targetPoint << std::endl;
+              std::cout << sourceCov << std::endl;
+              std::cout << targetCov << std::endl;
+
+      }
     }
 
     return(0);
