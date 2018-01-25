@@ -146,7 +146,7 @@ void GICP<PointT>::align(
         std::cout << summary.FullReport() << std::endl;
 
         double mse = (currentTransform.inverse()*estTransform).log().squaredNorm();
-        if(mse < 1e-3 || count>50)
+        if(mse < 1e-5 || count>50)
             converged = true;
         std::cout<< "MSE: " << mse << std::endl;
         std::cout<< "Transform: " << std::endl;

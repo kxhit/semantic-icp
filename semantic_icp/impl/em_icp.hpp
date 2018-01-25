@@ -56,10 +56,10 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
     for(int source_index = 0; source_index != transformed_source->size(); source_index++) {
       const PointT &transformed_source_pt = transformed_source->points[source_index];
 
-      target_kd_tree_->nearestKSearch(transformed_source_pt, 4,
+      target_kd_tree_->nearestKSearch(transformed_source_pt, 1,
                                       target_index, dist_sq);
       for(int correspondence_index = 0;
-          correspondence_index < 4;
+          correspondence_index < 1;
           correspondence_index++) {
         if( dist_sq[correspondence_index] < 250 ) {
           const PointT &source_pt =
@@ -159,7 +159,7 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
     std::cout << summary.FullReport() << std::endl;
 
     double mse = (current_transform.inverse()*est_transform).log().squaredNorm();
-    if(mse < 1e-3 || outter_itter>50)
+    if(mse < 1e-5 || outter_itter>50)
         converged = true;
     std::cout<< "MSE: " << mse << std::endl;
     std::cout<< "Transform: " << std::endl;
