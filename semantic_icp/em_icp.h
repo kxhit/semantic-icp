@@ -76,6 +76,9 @@ class EmIterativeClosestPoint {
   void
   align(PointCloudPtr finalCloud, const Sophus::SE3d &initTransform);
 
+  void
+  getFusedLabels(PointCloudPtr labeledCloud, const Sophus::SE3d &transformation);
+
   Sophus::SE3d
   getFinalTransFormation() {
     Sophus::SE3d temp = final_transformation_;

@@ -106,7 +106,7 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
                                                                     base_transformation_);
           prob *=cost_function->Probability( est_transform);
           problem.AddResidualBlock(cost_function,
-                                   new ceres::ScaledLoss(new ceres::CauchyLoss(1.5),
+                                   new ceres::ScaledLoss(new ceres::CauchyLoss(4.0),
                                                          prob,
                                                          ceres::TAKE_OWNERSHIP),
                                    est_transform.data());
@@ -179,7 +179,74 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
                                mat);
   }
   outer_iter=outter_itter;
+}
 
+template <size_t N>
+void EmIterativeClosestPoint<N>:: getFusedLabels(PointCloudPtr labeledCloud,
+    const Sophus::SE3d &transformation) {
+
+  typename pcl::PointCloud<PointT>::Ptr transformed_source (new pcl::PointCloud<PointT>());
+  Eigen::Matrix4d trans_mat = transformation.matrix();
+  pcl::transformPointCloud(*source_cloud_,
+                           *transformed_source,
+                           trans_mat);
+  std::vector<int> target_index;
+  std::vector<float> dist_sq;
+
+
+  std::cout << "Num Points: " << transformed_source->size() << std::endl;
+  for(int source_index = 0; source_index != transformed_source->size(); source_index++) {
+    const PointT &transformed_source_pt = transformed_source->points[source_index];
+    const PointT &source_pt =
+      source_cloud_->points[source_index];
+
+    target_kd_tree_->nearestKSearch(transformed_source_pt, 4,
+                                    target_index, dist_sq);
+
+    Eigen::Matrix<double,N,1> sprob = Eigen::Matrix<double,N,1>::Zero();
+    for(int correspondence_index = 0;
+        correspondence_index < 4;
+        correspondence_index++) {
+      if( dist_sq[correspondence_index] < 250 ) {
+        const pcl::PointXYZ s_pt(source_pt.x, source_pt.y, source_pt.z);
+        const Eigen::Matrix3d &source_cov =
+          source_covariances_->at(source_index);
+        const PointT &target_pt =
+          target_cloud_->points[target_index[correspondence_index]];
+        const pcl::PointXYZ t_pt(target_pt.x, target_pt.y, target_pt.z);
+        const Eigen::Matrix3d &target_cov =
+          target_covariances_->at(target_index[correspondence_index]);
+
+        const Eigen::Matrix<double,N, 1> target_dist =
+          target_distributions_->at(target_index[correspondence_index]);
+        const Eigen::Matrix<double,N, 1> source_dist =
+          source_distributions_->at(source_index);
+
+        GICPCostFunction* cost_function = new GICPCostFunction(s_pt,
+                                                               t_pt,
+                                                               source_cov,
+                                                               target_cov,
+                                                               base_transformation_);
+        double prob =cost_function->Probability( transformation);
+        for(size_t s = 0; s<N; s++){
+          double temp = target_dist.transpose()*confusion_matrix_.col(s);
+          temp *= source_dist.transpose()*confusion_matrix_.col(s);
+          sprob(s,0) += temp*prob;
+        }
+      }
+    }
+    double max_prob = 0;
+    size_t max_s = 0;
+    for(size_t s = 0; s<N; s++) {
+      if(sprob(s,0)>max_prob) {
+        max_s = s;
+        max_prob = sprob(s,0);
+      }
+    }
+    PointT labeled_pt = source_pt;
+    labeled_pt.label = max_s+1;
+    labeledCloud->push_back(labeled_pt);
+  }
 }
 
 template <size_t N>

@@ -95,7 +95,7 @@ void GICP<PointT>::align(
                                                                            baseTransformation_);
 
                     problem.AddResidualBlock(cost_function,
-                                             new ceres::CauchyLoss(1.5),
+                                             new ceres::CauchyLoss(5.0),
                                              estTransform.data());
                     // Gradient Check
                     if (false) {
