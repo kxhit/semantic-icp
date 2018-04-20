@@ -56,10 +56,10 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
     for(int source_index = 0; source_index != transformed_source->size(); source_index++) {
       const PointT &transformed_source_pt = transformed_source->points[source_index];
 
-      target_kd_tree_->nearestKSearch(transformed_source_pt, 1,
+      target_kd_tree_->nearestKSearch(transformed_source_pt, 4,
                                       target_index, dist_sq);
       for(int correspondence_index = 0;
-          correspondence_index < 1;
+          correspondence_index < 4;
           correspondence_index++) {
         if( dist_sq[correspondence_index] < 250 ) {
           const PointT &source_pt =
@@ -106,7 +106,7 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
                                                                     base_transformation_);
           prob *=cost_function->Probability( est_transform);
           problem.AddResidualBlock(cost_function,
-                                   new ceres::ScaledLoss(new ceres::CauchyLoss(4.0),
+                                   new ceres::ScaledLoss(new ceres::CauchyLoss(0.005),
                                                          prob,
                                                          ceres::TAKE_OWNERSHIP),
                                    est_transform.data());

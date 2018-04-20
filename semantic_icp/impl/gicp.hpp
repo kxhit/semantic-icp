@@ -95,7 +95,7 @@ void GICP<PointT>::align(
                                                                            baseTransformation_);
 
                     problem.AddResidualBlock(cost_function,
-                                             new ceres::CauchyLoss(5.0),
+                                             new ceres::CauchyLoss(0.1),
                                              estTransform.data());
                     // Gradient Check
                     if (false) {
@@ -134,7 +134,7 @@ void GICP<PointT>::align(
         options.gradient_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
         options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
         options.linear_solver_type = ceres::DENSE_QR;
-        options.num_threads = 4;
+        options.num_threads = 8;
         options.max_num_iterations = 400;
        // options.check_gradients = true;
         options.gradient_check_numeric_derivative_relative_step_size = 1e-8;

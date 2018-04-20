@@ -23,9 +23,9 @@ class SceneNetMetrics
                 mat = Eigen::Map<Eigen::Matrix<double,4,4,Eigen::RowMajor> > (data);
                 Sophus::SE3d trans = Sophus::SE3d::fitToSE3(mat);
                 size_t index = static_cast<size_t>(std::stod((*loop)[16]));
-                gtPoses_[index]=trans.inverse();
+                gtPoses_.push_back(trans.inverse());
                 std::cout << "Index: " << index << std::endl;
-                std::cout << "Transfrom: " << std::endl << mat << std::endl;
+                std::cout << "Transfrom: " << std::endl << trans.inverse().matrix() << std::endl;
             }
             out_ = out;
 
@@ -113,7 +113,7 @@ class SceneNetMetrics
 
     private:
         std::ifstream gtFile_;
-        std::map<size_t, Sophus::SE3d> gtPoses_;
+        std::vector<Sophus::SE3d> gtPoses_;
 
         std::vector<Sophus::SE3d> transformDiffs_;
         std::vector<double> transformErrors_;

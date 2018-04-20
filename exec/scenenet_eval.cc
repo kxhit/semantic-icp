@@ -110,14 +110,15 @@ main (int argc, char** argv)
     SceneNetMetrics se3GICPMetrics(strGTFile, &foutse3GICP);
     SceneNetMetrics GICPMetrics(strGTFile, &foutGICP);
     SceneNetMetrics bootstrapMetrics(strGTFile, &foutBootstrap);
+    int STEP =1;
 
-    for(size_t n = 10; n<250; n+=1) {
+    for(size_t n = 290; n<pcd_fns.size()-STEP; n+=STEP) {
         std::string strTarget = pcd_fns[n];
-        std::string strSource = pcd_fns[n+1];
+        std::string strSource = pcd_fns[n+STEP];
         std::cout << "Target Cloud " << strTarget << std::endl;
         std::cout << "Source Cloud " << strSource << std::endl;
-        size_t indxTarget = n*25;
-        size_t indxSource = (n+1)*25;
+        size_t indxTarget = n;
+        size_t indxSource = (n+STEP);
         pcl::PointCloud<pcl::PointXYZL>::Ptr cloudA (new pcl::PointCloud<pcl::PointXYZL>);
 
         if (pcl::io::loadPCDFile<pcl::PointXYZL> (strSource, *cloudA) == -1) //* load the file
@@ -170,7 +171,7 @@ main (int argc, char** argv)
                   << bootstrapMetrics.evaluate(initTransform, indxTarget, indxSource, timeInit, 0)
                   << std::endl;
 
-        semanticicp::EmIterativeClosestPoint<13> emicp;
+        semanticicp::EmIterativeClosestPoint<13> emicp(20, 1e-6);
         pcl::PointCloud<pcl::PointXYZL>::Ptr
           finalCloudem( new pcl::PointCloud<pcl::PointXYZL> );
 
@@ -202,7 +203,7 @@ main (int argc, char** argv)
         pcl::io::loadPCDFile<pcl::PointXYZ> (strTarget, *cloudBnoL);
 
 
-        semanticicp::GICP<pcl::PointXYZ> gicpse3;
+        semanticicp::GICP<pcl::PointXYZ> gicpse3(20, 1e-6);
         pcl::PointCloud<pcl::PointXYZ>::Ptr finalCloudse3( new pcl::PointCloud<pcl::PointXYZ> );
 
         begin = std::chrono::steady_clock::now();
