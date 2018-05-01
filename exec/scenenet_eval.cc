@@ -112,7 +112,7 @@ main (int argc, char** argv)
     SceneNetMetrics bootstrapMetrics(strGTFile, &foutBootstrap);
     int STEP =1;
 
-    for(size_t n = 290; n<pcd_fns.size()-STEP; n+=STEP) {
+    for(size_t n = 0; n<pcd_fns.size()-STEP; n+=STEP) {
         std::string strTarget = pcd_fns[n];
         std::string strSource = pcd_fns[n+STEP];
         std::cout << "Target Cloud " << strTarget << std::endl;

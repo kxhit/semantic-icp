@@ -13,6 +13,7 @@
 #include <gicp_cost_functor_autodiff.h>
 #include <gicp_cost_function.h>
 #include <local_parameterization_se3.h>
+#include <sqloss.h>
 
 #include<Eigen/StdVector>
 #include<ceres/gradient_checker.h>
@@ -26,7 +27,7 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
 
   ComputeCovariances(source_cloud_, source_kd_tree_, source_covariances_, source_distributions_);
   ComputeCovariances(target_cloud_, target_kd_tree_, target_covariances_, target_distributions_);
-  Sophus::SE3d current_transform(init_transform);
+  Sophus::SE3d current_transform = init_transform;
   bool converged = false;
   size_t outter_itter = 0;
 
@@ -36,7 +37,7 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
     ceres::Problem problem;
 
     // Add Sophus SE3 Parameter block with local parametrization
-    Sophus::SE3d est_transform(current_transform);
+    Sophus::SE3d est_transform = current_transform;
     problem.AddParameterBlock(est_transform.data(), Sophus::SE3d::num_parameters,
                               new LocalParameterizationSE3);
 
@@ -106,32 +107,44 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
                                                                     base_transformation_);
           prob *=cost_function->Probability( est_transform);
           problem.AddResidualBlock(cost_function,
-                                   new ceres::ScaledLoss(new ceres::CauchyLoss(0.005),
+                                   new ceres::ComposedLoss(
+                                   new ceres::ScaledLoss(new ceres::CauchyLoss(3.0),
                                                          prob,
                                                          ceres::TAKE_OWNERSHIP),
+                                   ceres::TAKE_OWNERSHIP,
+                                   new SQLoss(),
+                                   ceres::TAKE_OWNERSHIP),
                                    est_transform.data());
 
           // Gradient Check
           if (false) {
+            std::cout << "Gradient Check:\n";
             ceres::NumericDiffOptions numeric_diff_options;
             numeric_diff_options.relative_step_size = 1e-13;
 
             std::vector<const ceres::LocalParameterization*> lp;
             lp.push_back(new LocalParameterizationSE3);
 
-            ceres::GradientChecker gradient_checker(cost_function,
+            GICPCostFunction* cost_test = new GICPCostFunction(s_pt,
+                                                                    t_pt,
+                                                                    source_cov,
+                                                                    target_cov,
+                                                                    base_transformation_);
+            ceres::GradientChecker gradient_checker(cost_test,
                         &lp,
                         numeric_diff_options);
 
-            ceres::GradientChecker::ProbeResults results;
+            ceres::GradientChecker::ProbeResults *results = new ceres::GradientChecker::ProbeResults();
             std::vector<double *> params;
-            params.push_back(est_transform.data());
-            if (!gradient_checker.Probe(params.data(), 5e-4, &results)) {
+            Sophus::SE3d test_transform = est_transform;
+            params.push_back(test_transform.data());
+            std::cout << "Doing Check:\n";
+            if (!gradient_checker.Probe(params.data(), 5e-12, results)) {
               std::cout << "An error has occurred:\n";
-              std::cout << results.error_log;
-              std::cout << results.jacobians[0] << std::endl;
-              std::cout << results.numeric_jacobians[0] << std::endl;
-              std::cout << est_transform.matrix() << std::endl;
+              std::cout << results->error_log;
+              std::cout << results->jacobians[0] << std::endl;
+              std::cout << results->numeric_jacobians[0] << std::endl;
+              std::cout << test_transform.matrix() << std::endl;
               std::cout << source_pt << std::endl;
               std::cout << target_pt << std::endl;
               std::cout << source_cov << std::endl;
@@ -142,6 +155,10 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
       }  // For loop over correspondences
     }  // For loop over points
     // Sovler Options
+    std::cout << "Solve\n";
+    std::cout << "Number of Residual Blocks: " << problem.NumResidualBlocks() << std::endl;
+    std::cout << "Size of Parameter BlocK: " << problem.ParameterBlockSize(est_transform.data()) << std::endl;
+    std::cout << "Size of Parameter Local BlocK: " << problem.ParameterBlockLocalSize(est_transform.data()) << std::endl;
     ceres::Solver::Options options;
     options.gradient_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
     options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();

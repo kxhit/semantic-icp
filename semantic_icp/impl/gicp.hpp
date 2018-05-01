@@ -11,6 +11,7 @@
 //#include <gicp_cost_functor_autodiff.h>
 #include <gicp_cost_function.h>
 #include <local_parameterization_se3.h>
+#include <sqloss.h>
 
 #include<Eigen/StdVector>
 #include<ceres/gradient_checker.h>
@@ -95,7 +96,11 @@ void GICP<PointT>::align(
                                                                            baseTransformation_);
 
                     problem.AddResidualBlock(cost_function,
-                                             new ceres::CauchyLoss(0.1),
+                                             new ceres::ComposedLoss(
+                                               new ceres::CauchyLoss(3.0),
+                                               ceres::TAKE_OWNERSHIP,
+                                               new SQLoss(),
+                                               ceres::TAKE_OWNERSHIP),
                                              estTransform.data());
                     // Gradient Check
                     if (false) {
