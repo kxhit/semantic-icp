@@ -48,6 +48,13 @@ namespace semanticicp
         };
 
         inline void
+        setSourceCloud( const PointCloudPtr &cloud, const KdTreePtr &tree, const MatricesVectorPtr &covs) {
+            sourceCloud_ = cloud;
+            sourceKdTree_ = tree;
+            sourceCovariances_ = covs;
+        };
+
+        inline void
         setTargetCloud ( const PointCloudPtr &cloud ) {
             targetCloud_ = cloud;
             targetKdTree_ = KdTreePtr(new KdTree());
@@ -55,6 +62,32 @@ namespace semanticicp
             targetCovariances_ = MatricesVectorPtr(new MatricesVector());
         };
 
+        inline void
+        setTargetCloud( const PointCloudPtr &cloud, const KdTreePtr &tree, const MatricesVectorPtr &covs) {
+            targetCloud_ = cloud;
+            targetKdTree_ = tree;
+            targetCovariances_ = covs;
+        };
+
+        inline KdTreePtr
+        getSourceKdTree() {
+            return sourceKdTree_;
+        };
+
+        inline MatricesVectorPtr
+        getSourceCovariances() {
+            return sourceCovariances_;
+        };
+
+        inline KdTreePtr
+        getTargetKdTree() {
+            return targetKdTree_;
+        };
+
+        inline MatricesVectorPtr
+        getTargetCovariances() {
+            return targetCovariances_;
+        };
 
         void
         align(PointCloudPtr finalCloud);

@@ -114,6 +114,13 @@ main (int argc, char** argv)
     KittiMetrics GICPMetrics(strGTFile, &foutGICP);
     KittiMetrics bootstrapMetrics(strGTFile, &foutBootstrap);
 
+    semanticicp::GICP<pcl::PointXYZ> gicpse3temp;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::io::loadPCDFile<pcl::PointXYZ> (pcd_fns[0], *cloud);
+    gicpse3temp.setTargetCloud(cloud);
+    auto kdtree = gicpse3temp.getTargetKdTree();
+    auto covs = gicpse3temp.getTargetCovariances();
+
     for(size_t n = 0; n<(pcd_fns.size()-3); n+=3) {
         std::cout << "Cloud# " << n << std::endl;
         size_t indxTarget = n;
@@ -203,7 +210,7 @@ main (int argc, char** argv)
         pcl::PointCloud<pcl::PointXYZ>::Ptr finalCloudse3( new pcl::PointCloud<pcl::PointXYZ> );
 
         begin = std::chrono::steady_clock::now();
-        gicpse3.setSourceCloud(cloudAnoL);
+        gicpse3.setSourceCloud(cloudAnoL, kdtree, covs);
         gicpse3.setTargetCloud(cloudBnoL);
         gicpse3.align(finalCloudse3);
         end = std::chrono::steady_clock::now();
@@ -215,6 +222,8 @@ main (int argc, char** argv)
                   << se3GICPMetrics.evaluate(gicpTransform, indxTarget,
                           indxSource, timese3GICP, gicpse3.getOuterIter())
                   << std::endl;
+        kdtree = gicpse3.getTargetKdTree();
+        covs = gicpse3.getTargetCovariances();
 
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZL, pcl::PointXYZL> gicp;
         pcl::PointCloud<pcl::PointXYZL> final1;
