@@ -21,15 +21,17 @@ clouds.
 
 
 ## libraries
+* Eigen
 * PCL
 * Ceres-Solver
 * Sophus
 * gtest
+* Benchmark
 
 # Install
 
 ```
-$ mdkir build
+$ mkdir build
 $ cd build
 $ cmake ../
 $ make
