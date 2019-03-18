@@ -9,7 +9,7 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-find_package(Eigen3 REQUIRED)
+find_package(Eigen3 3.3.0 REQUIRED)
 find_package(Sophus REQUIRED)
 find_package (Ceres REQUIRED)
 

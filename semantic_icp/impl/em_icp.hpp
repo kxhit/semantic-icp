@@ -164,7 +164,8 @@ void EmIterativeClosestPoint<N>::align(PointCloudPtr final_cloud,
     options.function_tolerance = 0.1 * Sophus::Constants<double>::epsilon();
     options.linear_solver_type = ceres::DENSE_QR;
     options.num_threads = 8;
-    options.num_linear_solver_threads = 8;
+//    options.num_linear_solver_threads = 8;
+//    options.num_threads = 8; //kx
     options.max_num_iterations = 400;
    // options.check_gradients = true;
     options.gradient_check_numeric_derivative_relative_step_size = 1e-8;
